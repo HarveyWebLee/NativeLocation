@@ -9,7 +9,12 @@ apps/mobile      Expo SDK 54 / React Native 手机端
 apps/api         NestJS API（HTTP + WebSocket）
 packages/shared  共享 Zod 契约与类型
 packages/tsconfig 共享 TS 配置
+docs/            需求、架构与实现文档（见 docs/README.md）
 ```
+
+文档入口：[docs/README.md](./docs/README.md)。  
+功能需求说明书：[docs/functional-requirements.md](./docs/functional-requirements.md)。  
+实现总结：[docs/implementation-summary.md](./docs/implementation-summary.md)。
 
 ## 快速开始
 
@@ -48,10 +53,10 @@ pnpm dev:mobile
 
 ## 常用命令
 
-| 命令              | 说明                            |
-| ----------------- | ------------------------------- |
-| `pnpm db:up`      | 启动 PostgreSQL（宿主机 16875） |
-| `pnpm dev:api`    | 启动 NestJS                     |
-| `pnpm dev:mobile` | 启动 Expo                       |
-| `pnpm db:studio`  | Prisma Studio                   |
-| `pnpm typecheck`  | 全仓类型检查                    |
+| 命令              | 说明                                 |
+| ----------------- | ------------------------------------ |
+| `pnpm db:up`      | 启动 PostgreSQL（宿主机 16875）      |
+| `pnpm dev:api`    | 启动 NestJS                          |
+| `pnpm dev:mobile` | 启动 Expo（扫码真机 + 自动打开 Web） |
+| `pnpm db:studio`  | Prisma Studio                        |
+| `pnpm typecheck`  | 全仓类型检查                         |

@@ -40,5 +40,23 @@
     "turbo": "^2.5.4",
     "typescript": "^5.9.2",
     "typescript-eslint": "^8.20.0"
+  },
+  "pnpm": {
+    "overrides": {
+      "metro": "0.83.3",
+      "metro-babel-transformer": "0.83.3",
+      "metro-cache": "0.83.3",
+      "metro-cache-key": "0.83.3",
+      "metro-config": "0.83.3",
+      "metro-core": "0.83.3",
+      "metro-file-map": "0.83.3",
+      "metro-minify-terser": "0.83.3",
+      "metro-resolver": "0.83.3",
+      "metro-runtime": "0.83.3",
+      "metro-source-map": "0.83.3",
+      "metro-symbolicate": "0.83.3",
+      "metro-transform-plugins": "0.83.3",
+      "metro-transform-worker": "0.83.3"
+    }
   }
 }

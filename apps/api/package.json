@@ -14,7 +14,7 @@
     "typecheck": "tsc -p tsconfig.build.json --noEmit",
     "test": "jest",
     "test:e2e": "jest --config ./test/jest-e2e.json",
-    "prisma:generate": "prisma generate",
+    "prisma:generate": "node scripts/prisma-generate.mjs",
     "prisma:migrate": "prisma migrate dev",
     "prisma:studio": "prisma studio"
   },

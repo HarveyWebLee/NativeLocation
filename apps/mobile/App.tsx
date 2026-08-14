@@ -4,17 +4,26 @@ import { StatusBar } from 'expo-status-bar';
 import { useEffect, useRef, useState } from 'react';
 import {
   ActivityIndicator,
+  Platform,
   Pressable,
-  SafeAreaView,
   StyleSheet,
   Text,
   View,
 } from 'react-native';
+import { SafeAreaProvider, SafeAreaView } from 'react-native-safe-area-context';
 
 import { getOrCreateDeviceId } from './src/device';
 import { LocationTracker, type TrackingStatus } from './src/location/tracker';
 
 export default function App() {
+  return (
+    <SafeAreaProvider>
+      <AppContent />
+    </SafeAreaProvider>
+  );
+}
+
+function AppContent() {
   const trackerRef = useRef<LocationTracker | null>(null);
   const [deviceId, setDeviceId] = useState<string | null>(null);
   const [bootError, setBootError] = useState<string | null>(null);
@@ -38,9 +47,25 @@ export default function App() {
         trackerRef.current = tracker;
         setDeviceId(id);
       } catch (error) {
-        if (!cancelled) {
-          setBootError(error instanceof Error ? error.message : '设备注册失败');
+        if (cancelled) {
+          return;
         }
+        // Web 预览：接口不可达时仍展示主界面布局
+        if (Platform.OS === 'web') {
+          const previewId = 'web-preview';
+          const tracker = new LocationTracker(previewId, setStatus);
+          trackerRef.current = tracker;
+          setDeviceId(previewId);
+          setStatus((prev) => ({
+            ...prev,
+            message:
+              error instanceof Error
+                ? `Web 预览（未连上 API：${error.message}）`
+                : 'Web 预览（未连上 API）',
+          }));
+          return;
+        }
+        setBootError(error instanceof Error ? error.message : '设备注册失败');
       }
     })();
 

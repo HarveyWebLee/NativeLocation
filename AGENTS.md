@@ -43,9 +43,13 @@ Git `pre-commit` 会强制跑 `format + lint:fix + typecheck`；`commit-msg` 校
 
 示例：`feat(api): 增加位置批量上报接口`
 
+## 需求与文档（必须）
+
+用户提出业务需求、优化或架构调整时：先分析、列出待确认项并等需求方确认，再更新或新增 `docs/` 文档，**确认后再改代码**。文档目录见 [docs/README.md](docs/README.md)。独立需求用 `docs/requirements/`；架构决策用 `docs/implementation-summary.md` 或 `docs/architecture/`。详见 `.cursor/rules/requirements-first.mdc`。
+
 ## Cursor 资产
 
-- Rules：根目录 `.cursorrules`（含 Git 提交规范）、`.cursor/rules/`
+- Rules：根目录 `.cursorrules`（含 Git 提交规范）、`.cursor/rules/`（含需求先行）
 - Skills：`.cursor/skills/`（`code-quality-gate`、`git-commit-convention`）
 - Hooks：`.cursor/hooks.json`
   - `afterFileEdit`：改文件后自动 Prettier + ESLint（含 import 顺序）

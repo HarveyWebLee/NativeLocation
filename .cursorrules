@@ -3,6 +3,7 @@
 定位 App monorepo：Expo（`apps/mobile`）+ NestJS（`apps/api`）+ 共享契约（`packages/shared`）。
 
 - 先读根目录 `AGENTS.md`，再改代码。
+- 用户提出需求或架构调整时：先分析并确认待定项，更新/新增 `docs/` 文档后再开发（见 `.cursor/rules/requirements-first.mdc`）。
 - 包边界：`apps/api` NestJS、`apps/mobile` Expo、`packages/shared` 契约、`packages/tsconfig` TS 基座。
 - 改完必须可通过：`pnpm format`、`pnpm lint:fix`、`pnpm typecheck`（或 `pnpm precommit`）。
 - 不新增依赖除非必要；优先既有库与 workspace 包。
