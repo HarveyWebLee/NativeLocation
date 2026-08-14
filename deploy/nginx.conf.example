@@ -1,5 +1,7 @@
 # 将 server_name 与证书路径换成你的域名后再启用。
 # 证书可用：certbot certonly --nginx -d api.example.com
+# 若 80/443 已被占用：不要再 listen 这两端口，见 docs/deploy.md「5.4.1」。
+# 改端口示例：listen 18080;  listen 18443 ssl http2;  客户端 URL 须带 :18443。
 
 server {
     listen 80;

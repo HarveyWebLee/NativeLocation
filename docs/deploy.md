@@ -84,7 +84,7 @@ openssl rand -hex 32
   Docker 内网 Postgres:5432（不映射公网）
 ```
 
-- Nest 在容器内仍是 HTTP；对外只有 443。
+- Nest 在容器内仍是 HTTP；对外默认由反向代理提供 443。若 80/443 已被占用且不能释放，见 [5.4.1](#541-80--443-已被占用无法释放)。
 - `GET /health` **不需要** API Key（探活、证书、Nginx 检查）。
 - 其余 HTTP 需要请求头 `X-Api-Key`（契约常量 `API_KEY_HEADER` = `x-api-key`）。
 - WebSocket 路径 `/v1/location/stream`，查询参数 `apiKey=`（`API_KEY_QUERY`）。校验失败关闭码 `1008`。
@@ -129,7 +129,7 @@ sudo apt-get update
 sudo apt-get install -y nginx certbot python3-certbot-nginx
 ```
 
-防火墙只开放 SSH、80、443。**不要**把 `5432` 或 `18156` 暴露到 `0.0.0.0`。Compose 已把 API 映射为 `127.0.0.1:18156:18156`。
+防火墙默认开放 SSH、80、443。**不要**把 `5432` 或 `18156` 暴露到 `0.0.0.0`。Compose 已把 API 映射为 `127.0.0.1:18156:18156`。80/443 被占用时见 [5.4.1](#541-80--443-已被占用无法释放)。
 
 ### 5.2 放置代码与环境变量
 
@@ -190,6 +190,54 @@ curl -sS https://api.example.com/health
 ```
 
 HTTP 应 301 到 HTTPS。证书续期由 certbot timer 处理；续期后 Nginx 会 reload。
+
+### 5.4.1 80 / 443 已被占用且无法释放
+
+先确认占用者（不要强行杀掉无法停的系统服务）：
+
+```bash
+# Linux
+sudo ss -tlnp | grep -E ':80|:443'
+
+# Windows（管理员 CMD）
+netstat -ano | findstr ":80 "
+netstat -ano | findstr ":443"
+```
+
+按优先级选一种做法。**Nest 始终只听 `127.0.0.1:18156`，不必改应用端口去抢 80/443。**
+
+#### 方案 A（优先）：挂到现有 Web 服务后面
+
+占用 80/443 的往往是 IIS、另一套 Nginx / Caddy / Apache、宝塔、公司统一网关。不要再起一个抢端口的 Nginx，而是在**现有反向代理**上增加本 API 的域名或路径，反代到 `http://127.0.0.1:18156`。
+
+必须同时支持：
+
+- HTTPS 证书（可用现有站点的证书，或给 `api.` 子域单独签）
+- WebSocket：`Upgrade` / `Connection` 头，读超时 ≥ 3600s（与 `deploy/nginx.conf.example` 相同）
+
+IIS 需安装 ARR + WebSocket 协议；在站点或 URL Rewrite 里把 `api.example.com` 转到 `http://127.0.0.1:18156`。配好后客户端 URL **仍是** `https://api.example.com`（标准 443），EAS 变量不用带端口。
+
+#### 方案 B：改用其它公网端口
+
+例如对外 `18080`（HTTP）+ `18443`（HTTPS），防火墙只放行这两个端口。Nginx 示例：
+
+```nginx
+listen 18080;
+listen 18443 ssl http2;
+```
+
+Let's Encrypt 的 HTTP-01 校验也要用 80。80 拿不到时改用 **DNS-01**（在域名商加 TXT，或 Cloudflare 插件），不要依赖本机 80。
+
+客户端必须带端口（每次 EAS 构建写入）：
+
+- `EXPO_PUBLIC_API_HTTP_URL=https://api.example.com:18443`
+- `EXPO_PUBLIC_API_WS_URL=wss://api.example.com:18443/v1/location/stream`
+
+部分运营商或公司网会拦截非 443 的 HTTPS，真机请在 4G 与常用 Wi‑Fi 都测一遍。能用方案 A 或 C 时不要选 B。
+
+#### 方案 C：出站隧道（本机不开放 80/443）
+
+用 Cloudflare Tunnel、frp、SSH 反向代理等，由外部边缘终止 443，再转到本机 `127.0.0.1:18156`。VPS 防火墙可以不放行 80/443。客户端仍使用边缘提供的 `https://` / `wss://` 域名（一般为标准 443）。
 
 ### 5.5 用 curl 验收鉴权
 
@@ -438,6 +486,7 @@ npx eas-cli submit --profile production --platform ios
 | iOS 构建缺证书                     | `eas credentials` 按提示生成；Bundle ID 必须与开发者后台一致        |
 | Play 拒包 versionCode              | 提高 `android.versionCode` 后重打 production                        |
 | 定位权限被拒后无数据               | 符合设计；引导用户到系统设置。生产包不能在后台持续采点              |
+| 本机 80/443 被占用无法释放         | 不要改 Nest 端口去抢；见 [5.4.1](#541-80--443-已被占用无法释放)     |
 
 ---
 
