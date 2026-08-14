@@ -1,0 +1,13 @@
+node_modules
+dist
+coverage
+.expo
+.turbo
+.next
+build
+pnpm-lock.yaml
+*.tsbuildinfo
+apps/mobile/.git.bak.mobile
+apps/api/prisma/migrations
+**/*.min.js
+**/*.min.css

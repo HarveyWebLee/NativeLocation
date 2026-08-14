@@ -1,0 +1,84 @@
+---
+description: NativeLocation Git 提交消息规范（Angular Conventional Commits + 简体中文）
+alwaysApply: true
+---
+
+# Git 提交消息规范
+
+完整校验见 `commitlint.config.cjs` 与 `.husky/commit-msg`。生成或代写 commit message 时必须遵守。
+
+## 格式
+
+```text
+<type>(<scope>): <subject>
+
+[optional body]
+
+[optional footer]
+```
+
+- 提交说明使用**简体中文**
+- `type`：必填
+- `scope`：可选；kebab-case
+- `subject`：必填；祈使句；**不加句号**；不超过 72 个字符
+- header 整行不超过 100 个字符
+- `body` / `footer`：可选；与 header 之间空一行
+- 破坏性变更在 footer 写 `BREAKING CHANGE:`
+
+## type
+
+| type | 含义 |
+| --- | --- |
+| `feat` | 新功能 |
+| `fix` | 缺陷修复 |
+| `docs` | 文档变更 |
+| `style` | 代码格式（不影响逻辑） |
+| `refactor` | 重构（非 feat / 非 fix） |
+| `perf` | 性能优化 |
+| `test` | 测试相关 |
+| `build` | 构建系统或外部依赖 |
+| `ci` | CI 配置与脚本 |
+| `chore` | 杂项（工具、配置等） |
+| `revert` | 回滚提交 |
+
+## scope（本仓库）
+
+按改动所在包选择，跨包取主要影响面：
+
+| scope | 对应 |
+| --- | --- |
+| `api` | `apps/api` NestJS |
+| `mobile` | `apps/mobile` Expo |
+| `shared` | `packages/shared` 契约 |
+| `tooling` | ESLint / Prettier / Husky / Turbo |
+| `prisma` | Prisma schema / 迁移 |
+| `cursor` | `.cursor` 规则与技能 |
+| `ci` | GitHub Actions 等 CI |
+
+## 生成原则
+
+1. 根据暂存/改动归纳「为什么」与「做了什么」；`subject` 信息量要足，禁止「改一下」「更新」等空泛描述。
+2. 一次提交一件事；message 与实际 diff 一致。
+3. `feat` = 全新能力；`fix` = 修缺陷；增强已有能力用 `feat` 或 `refactor`/`perf`（按实质选择），勿滥用 `chore`。
+4. **仅在用户明确要求时**才执行 `git commit`；不跳过 hooks（`--no-verify`）；不擅自 amend / force push；不改 git config。
+5. 提交前先跑 `pnpm precommit`（format + lint:fix + typecheck）。
+6. 用 heredoc 传 message：
+
+```bash
+git commit -m "$(cat <<'EOF'
+feat(api): 增加位置批量上报接口
+
+EOF
+)"
+```
+
+## 示例
+
+```text
+feat(shared): 补充位置批量上报 Zod 契约
+fix(api): 处理 WebSocket 断线后的校验错误
+fix(mobile): 修复前台定位权限申请失败
+docs(cursor): 补充 Git 提交规范规则
+chore(tooling): 统一 eslint 与 prettier 配置
+build(deps): 升级 Prisma 客户端
+```

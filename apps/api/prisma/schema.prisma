@@ -1,0 +1,36 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+model Device {
+  id          String          @id @default(cuid())
+  deviceId    String          @unique
+  platform    String          @default("unknown")
+  displayName String?
+  createdAt   DateTime        @default(now())
+  updatedAt   DateTime        @updatedAt
+  locations   LocationPoint[]
+}
+
+model LocationPoint {
+  id         String   @id @default(cuid())
+  deviceId   String
+  device     Device   @relation(fields: [deviceId], references: [deviceId], onDelete: Cascade)
+  latitude   Float
+  longitude  Float
+  accuracy   Float?
+  altitude   Float?
+  speed      Float?
+  heading    Float?
+  recordedAt DateTime
+  receivedAt DateTime @default(now())
+  source     String   @default("foreground")
+
+  @@index([deviceId, recordedAt(sort: Desc)])
+  @@index([receivedAt(sort: Desc)])
+}

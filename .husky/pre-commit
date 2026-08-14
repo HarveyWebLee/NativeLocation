@@ -1,0 +1,15 @@
+#!/usr/bin/env sh
+set -e
+
+# 全仓格式化 + ESLint 修复（含 import 顺序）+ TypeScript 检查
+pnpm precommit
+
+# 将因 format/lint 改动的、原本已暂存文件重新加入暂存区
+STAGED=$(git diff --cached --name-only --diff-filter=ACMR || true)
+if [ -n "$STAGED" ]; then
+  echo "$STAGED" | while IFS= read -r file; do
+    if [ -n "$file" ] && [ -f "$file" ]; then
+      git add -- "$file"
+    fi
+  done
+fi

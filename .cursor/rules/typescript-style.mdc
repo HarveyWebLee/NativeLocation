@@ -1,0 +1,14 @@
+---
+description: TypeScript / ESLint / Prettier / import 顺序约定
+globs: "**/*.{ts,tsx,js,jsx,mjs,cjs}"
+alwaysApply: false
+---
+
+# 代码风格与类型
+
+- 使用仓库根配置：`eslint.config.mjs`、`.prettierrc`。
+- import / export 顺序交给 `simple-import-sort`，运行 `pnpm lint:fix`，勿手工重排。
+- 避免 `any`；公开函数与复杂对象显式类型；少用断言。
+- 处理 null / 空数组 / 网络失败 / 权限失败，禁止空 catch。
+- Nest（`apps/api`）：模块化、DTO/校验与 Prisma 分层清晰。
+- Expo（`apps/mobile`）：查阅 SDK 57 文档后再写 API。

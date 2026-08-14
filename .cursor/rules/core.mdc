@@ -1,0 +1,14 @@
+---
+description: NativeLocation monorepo 核心约定与质量门禁
+alwaysApply: true
+---
+
+# NativeLocation 核心规则
+
+- 先读根目录 `AGENTS.md`，再改代码。
+- 包边界：`apps/api` NestJS、`apps/mobile` Expo、`packages/shared` 契约、`packages/tsconfig` TS 基座。
+- 改完必须可通过：`pnpm format`、`pnpm lint:fix`、`pnpm typecheck`。
+- 不新增依赖除非必要；优先既有库与 workspace 包。
+- 最小改动；不擅自扩大范围；不静默吞错。
+- 对用户说明使用简体中文。
+- 仅在用户明确要求时创建 git commit / push。
