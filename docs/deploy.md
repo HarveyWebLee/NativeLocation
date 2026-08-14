@@ -34,7 +34,7 @@
 
 ### 2.1 账号与材料
 
-- [ ] 一台可公网访问的 Linux VPS（建议 2 vCPU / 2 GB 内存起；需 Docker 与 80、443 端口）
+- [ ] 一台可公网访问的 Linux VPS（建议 2 vCPU / 2 GB 内存起；需 Docker；防火墙放行 **18200、18201**，不使用 80/443）
 - [ ] 已解析到该 VPS 的 API 域名（下文以 `api.example.com` 为例）
 - [ ] [Expo](https://expo.dev) 账号（EAS Build）
 - [ ] Apple Developer Program（上架 iOS）
@@ -72,10 +72,10 @@ openssl rand -hex 32
 ## 3. 架构与流量
 
 ```text
-真机 App (HTTPS / WSS)
+真机 App (HTTPS / WSS，端口 18201)
         │
         ▼
-  Nginx :443（TLS 终止）
+  Nginx :18201（TLS 终止）
         │  Upgrade: websocket
         ▼
   127.0.0.1:18156  NestJS 容器
@@ -84,7 +84,8 @@ openssl rand -hex 32
   Docker 内网 Postgres:5432（不映射公网）
 ```
 
-- Nest 在容器内仍是 HTTP；对外默认由反向代理提供 443。若 80/443 已被占用且不能释放，见 [5.4.1](#541-80--443-已被占用无法释放)。
+- Nest 在容器内仍是 HTTP。对外反向代理：**18200** = HTTP（301 到 HTTPS），**18201** = HTTPS/WSS。不使用 80/443。
+- 客户端地址必须带端口，例如 `https://api.example.com:18201`、`wss://api.example.com:18201/v1/location/stream`。
 - `GET /health` **不需要** API Key（探活、证书、Nginx 检查）。
 - 其余 HTTP 需要请求头 `X-Api-Key`（契约常量 `API_KEY_HEADER` = `x-api-key`）。
 - WebSocket 路径 `/v1/location/stream`，查询参数 `apiKey=`（`API_KEY_QUERY`）。校验失败关闭码 `1008`。
@@ -129,7 +130,7 @@ sudo apt-get update
 sudo apt-get install -y nginx certbot python3-certbot-nginx
 ```
 
-防火墙默认开放 SSH、80、443。**不要**把 `5432` 或 `18156` 暴露到 `0.0.0.0`。Compose 已把 API 映射为 `127.0.0.1:18156:18156`。80/443 被占用时见 [5.4.1](#541-80--443-已被占用无法释放)。
+防火墙开放 SSH、**18200**、**18201**。不要开放 80/443 给本服务。**不要**把 `5432` 或 `18156` 暴露到 `0.0.0.0`。Compose 已把 API 映射为 `127.0.0.1:18156:18156`。
 
 ### 5.2 放置代码与环境变量
 
@@ -171,73 +172,37 @@ curl -sS http://127.0.0.1:18156/health
 
 期望 JSON 健康响应。若 api 容器反复退出，查日志是否为「生产环境必须设置 `API_KEY`」或数据库连不上。
 
-### 5.4 Nginx + Let's Encrypt
+### 5.4 Nginx + Let's Encrypt（18200 / 18201）
+
+本服务**不占用 80/443**。Nginx 监听：
+
+| 端口    | 协议     | 用途                                      |
+| ------- | -------- | ----------------------------------------- |
+| `18200` | HTTP     | 301 跳转到 `https://主机:18201`           |
+| `18201` | HTTPS/WSS | 对外 API（TLS 终止后转到 `127.0.0.1:18156`） |
+| `18156` | HTTP     | 仅本机 Nest，不对公网                     |
+
+Let's Encrypt 的 HTTP-01 需要 80，本机用不了 80，因此证书用 **DNS-01**（在域名解析里加 TXT，或用 Cloudflare 等插件）。
 
 1. 将 `deploy/nginx.conf.example` 拷到 `/etc/nginx/sites-available/nativelocation`。
 2. 把其中所有 `api.example.com` 换成真实域名。
-3. 先只启用 **80** 段（或临时注释 443 段），`nginx -t` 后 `systemctl reload nginx`。
-4. 申请证书：
+3. 先申请证书（示例：手动 DNS）：
 
 ```bash
-sudo certbot --nginx -d api.example.com
+sudo certbot certonly --manual --preferred-challenges dns -d api.example.com
 ```
 
-5. 确认 443 段已启用，且 `proxy_set_header Upgrade` / `Connection` 与 `proxy_read_timeout 3600s` 仍在（WebSocket 需要）。
-6. 公网检查：
+按提示添加 `_acme-challenge` TXT 后再继续。有 Cloudflare 时可用对应 certbot 插件自动加 TXT。
+
+4. `nginx -t` 后 `systemctl reload nginx`。确认 18201 段含 `Upgrade` / `Connection` 与 `proxy_read_timeout 3600s`（WebSocket）。
+5. 防火墙放行 18200、18201。
+6. 公网检查（必须带端口）：
 
 ```bash
-curl -sS https://api.example.com/health
+curl -sS https://api.example.com:18201/health
 ```
 
-HTTP 应 301 到 HTTPS。证书续期由 certbot timer 处理；续期后 Nginx 会 reload。
-
-### 5.4.1 80 / 443 已被占用且无法释放
-
-先确认占用者（不要强行杀掉无法停的系统服务）：
-
-```bash
-# Linux
-sudo ss -tlnp | grep -E ':80|:443'
-
-# Windows（管理员 CMD）
-netstat -ano | findstr ":80 "
-netstat -ano | findstr ":443"
-```
-
-按优先级选一种做法。**Nest 始终只听 `127.0.0.1:18156`，不必改应用端口去抢 80/443。**
-
-#### 方案 A（优先）：挂到现有 Web 服务后面
-
-占用 80/443 的往往是 IIS、另一套 Nginx / Caddy / Apache、宝塔、公司统一网关。不要再起一个抢端口的 Nginx，而是在**现有反向代理**上增加本 API 的域名或路径，反代到 `http://127.0.0.1:18156`。
-
-必须同时支持：
-
-- HTTPS 证书（可用现有站点的证书，或给 `api.` 子域单独签）
-- WebSocket：`Upgrade` / `Connection` 头，读超时 ≥ 3600s（与 `deploy/nginx.conf.example` 相同）
-
-IIS 需安装 ARR + WebSocket 协议；在站点或 URL Rewrite 里把 `api.example.com` 转到 `http://127.0.0.1:18156`。配好后客户端 URL **仍是** `https://api.example.com`（标准 443），EAS 变量不用带端口。
-
-#### 方案 B：改用其它公网端口
-
-例如对外 `18080`（HTTP）+ `18443`（HTTPS），防火墙只放行这两个端口。Nginx 示例：
-
-```nginx
-listen 18080;
-listen 18443 ssl http2;
-```
-
-Let's Encrypt 的 HTTP-01 校验也要用 80。80 拿不到时改用 **DNS-01**（在域名商加 TXT，或 Cloudflare 插件），不要依赖本机 80。
-
-客户端必须带端口（每次 EAS 构建写入）：
-
-- `EXPO_PUBLIC_API_HTTP_URL=https://api.example.com:18443`
-- `EXPO_PUBLIC_API_WS_URL=wss://api.example.com:18443/v1/location/stream`
-
-部分运营商或公司网会拦截非 443 的 HTTPS，真机请在 4G 与常用 Wi‑Fi 都测一遍。能用方案 A 或 C 时不要选 B。
-
-#### 方案 C：出站隧道（本机不开放 80/443）
-
-用 Cloudflare Tunnel、frp、SSH 反向代理等，由外部边缘终止 443，再转到本机 `127.0.0.1:18156`。VPS 防火墙可以不放行 80/443。客户端仍使用边缘提供的 `https://` / `wss://` 域名（一般为标准 443）。
+访问 `http://api.example.com:18200/health` 应 301 到 `:18201`。部分运营商会拦截非 443 的 HTTPS，真机请在 4G 与常用 Wi‑Fi 都测一遍。
 
 ### 5.5 用 curl 验收鉴权
 
@@ -246,7 +211,7 @@ Let's Encrypt 的 HTTP-01 校验也要用 80。80 拿不到时改用 **DNS-01**�
 健康检查（无 Key，必须 200）：
 
 ```bash
-curl -sS -o /dev/null -w "%{http_code}\n" https://api.example.com/health
+curl -sS -o /dev/null -w "%{http_code}\n" https://api.example.com:18201/health
 ```
 
 无 Key 注册（必须 401）：
@@ -255,7 +220,7 @@ curl -sS -o /dev/null -w "%{http_code}\n" https://api.example.com/health
 curl -sS -o /dev/null -w "%{http_code}\n" \
   -H "Content-Type: application/json" \
   -d '{"platform":"android"}' \
-  https://api.example.com/v1/devices/register
+  https://api.example.com:18201/v1/devices/register
 ```
 
 带 Key 注册（必须 2xx，返回 `deviceId`）：
@@ -265,13 +230,13 @@ curl -sS \
   -H "Content-Type: application/json" \
   -H "X-Api-Key: YOUR_KEY" \
   -d '{"platform":"android","displayName":"prod-smoke"}' \
-  https://api.example.com/v1/devices/register
+  https://api.example.com:18201/v1/devices/register
 ```
 
 无 Key 的 WebSocket 应被关闭。可用任意支持自定义 URL 的客户端连接：
 
 ```text
-wss://api.example.com/v1/location/stream?apiKey=YOUR_KEY
+wss://api.example.com:18201/v1/location/stream?apiKey=YOUR_KEY
 ```
 
 连上后服务端会发 `{ "type": "connected", ... }`。错误 Key 时连接关闭，码 `1008`。
@@ -305,8 +270,8 @@ docker compose -f docker-compose.prod.yml --env-file .env.production exec postgr
 
 | 变量                       | 生产示例                                   | 说明                                  |
 | -------------------------- | ------------------------------------------ | ------------------------------------- |
-| `EXPO_PUBLIC_API_HTTP_URL` | `https://api.example.com`                  | 不要末尾斜杠                          |
-| `EXPO_PUBLIC_API_WS_URL`   | `wss://api.example.com/v1/location/stream` | 不要在此拼 `apiKey`，客户端会自动附加 |
+| `EXPO_PUBLIC_API_HTTP_URL` | `https://api.example.com:18201`                  | 必须带 `:18201`，不要末尾斜杠         |
+| `EXPO_PUBLIC_API_WS_URL`   | `wss://api.example.com:18201/v1/location/stream` | 不要在此拼 `apiKey`，客户端会自动附加 |
 | `EXPO_PUBLIC_API_KEY`      | 与服务器 `API_KEY` 相同                    | 打进包内                              |
 
 未设置 `EXPO_PUBLIC_API_HTTP_URL` 时，App 会回落到开发用 `http://<host>:18156`，**生产包不可依赖该回落**。
@@ -442,10 +407,10 @@ npx eas-cli submit --profile production --platform ios
 
 **API**
 
-- [ ] `https://域名/health` 为 200，证书有效
+- [ ] `https://域名:18201/health` 为 200，证书有效
 - [ ] 无 `X-Api-Key` 的 `POST /v1/devices/register` 为 401
 - [ ] 正确 Key 可注册设备
-- [ ] `wss://域名/v1/location/stream?apiKey=` 可连
+- [ ] `wss://域名:18201/v1/location/stream?apiKey=` 可连
 - [ ] Postgres 未对公网开放
 - [ ] 已做数据库备份
 
@@ -486,7 +451,7 @@ npx eas-cli submit --profile production --platform ios
 | iOS 构建缺证书                     | `eas credentials` 按提示生成；Bundle ID 必须与开发者后台一致        |
 | Play 拒包 versionCode              | 提高 `android.versionCode` 后重打 production                        |
 | 定位权限被拒后无数据               | 符合设计；引导用户到系统设置。生产包不能在后台持续采点              |
-| 本机 80/443 被占用无法释放         | 不要改 Nest 端口去抢；见 [5.4.1](#541-80--443-已被占用无法释放)     |
+| 18200/18201 连不上                 | 查防火墙与 Nginx `listen`；证书须 DNS-01；客户端 URL 必须带 `:18201` |
 
 ---
 
@@ -495,8 +460,8 @@ npx eas-cli submit --profile production --platform ios
 | 项       | 本地开发                           | 生产                                    |
 | -------- | ---------------------------------- | --------------------------------------- |
 | Compose  | `docker-compose.yml`，库端口 16875 | `docker-compose.prod.yml`，库不映射公网 |
-| API 地址 | `http://局域网IP:18156`            | `https://你的域名`                      |
-| WS       | `ws://.../v1/location/stream`      | `wss://.../v1/location/stream`          |
+| API 地址 | `http://局域网IP:18156`            | `https://你的域名:18201`                |
+| WS       | `ws://.../v1/location/stream`      | `wss://你的域名:18201/v1/location/stream` |
 | API Key  | 可不设（放行）                     | 必设，否则拒启                          |
 | 客户端   | Expo Go / `pnpm dev:mobile`        | EAS 独立包                              |
 | 环境变量 | 仅根目录 `.env`                    | Compose `.env.production`；EAS 控制台   |

@@ -359,7 +359,7 @@
 | NFR-01 | 平台     | 业务与 UI 必须同时兼容 iOS、Android（Expo Go / 后续独立包）；不以 Web 预览代替双端验收 | P0     |
 | NFR-02 | 实时性   | 前台正常网络下，点到入库延迟通常在数秒内                                               | P1     |
 | NFR-03 | 可靠性   | 短时断网可缓冲；不静默吞掉关键错误                                                     | P0     |
-| NFR-04 | 安全     | 生产：HTTPS/WSS、静态 API Key、生产未配 Key 拒启；MVP 本地开发可无 Key                 | P0     |
+| NFR-04 | 安全     | 生产：HTTPS/WSS（对外 18201，不使用 443）、静态 API Key、生产未配 Key 拒启；MVP 本地开发可无 Key | P0     |
 | NFR-05 | 隐私     | 明确系统权限文案；仅采集业务所需位置字段                                               | P0     |
 | NFR-06 | 可维护性 | monorepo；共享 Zod；TypeScript strict                                                  | P0     |
 | NFR-07 | 耗电     | 前台策略需节流；后台策略需单独评估                                                     | P1     |

@@ -1,21 +1,17 @@
 # 将 server_name 与证书路径换成你的域名后再启用。
-# 证书可用：certbot certonly --nginx -d api.example.com
-# 若 80/443 已被占用：不要再 listen 这两端口，见 docs/deploy.md「5.4.1」。
-# 改端口示例：listen 18080;  listen 18443 ssl http2;  客户端 URL 须带 :18443。
+# 本方案不使用 80/443：HTTP=18200，HTTPS/WSS=18201。
+# 证书须用 DNS-01（HTTP-01 依赖 80）。客户端 URL 必须带 :18201。
 
 server {
-    listen 80;
+    listen 18200;
     server_name api.example.com;
-    location /.well-known/acme-challenge/ {
-        root /var/www/certbot;
-    }
     location / {
-        return 301 https://$host$request_uri;
+        return 301 https://$host:18201$request_uri;
     }
 }
 
 server {
-    listen 443 ssl http2;
+    listen 18201 ssl http2;
     server_name api.example.com;
 
     ssl_certificate     /etc/letsencrypt/live/api.example.com/fullchain.pem;

@@ -13,7 +13,7 @@ MVP 使用明文 HTTP/WS、开放 CORS、无鉴权、仅 Expo Go。生产需在�
 
 ## 决策
 
-1. **TLS 在 Nginx（或同类反向代理）终止**，Nest 仍监听容器内 HTTP。对外只有 443。
+1. **TLS 在 Nginx（或同类反向代理）终止**，Nest 仍监听容器内 HTTP。对外 **不使用 80/443**：HTTP 为 **18200**，HTTPS/WSS 为 **18201**；客户端 URL 须带 `:18201`。证书用 DNS-01。
 2. **静态 API Key**：环境变量 `API_KEY`；HTTP 头 `X-Api-Key`；WS 连接 `...?apiKey=`。开发未设 Key 时放行；`NODE_ENV=production` 且无 Key 则进程退出。
 3. **健康检查免鉴权**，供反向代理与探活。
 4. **CORS**：生产按 `CORS_ORIGIN` 白名单（原生 App 不走 CORS）；未配置则生产关闭浏览器跨域。
