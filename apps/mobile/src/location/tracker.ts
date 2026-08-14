@@ -1,8 +1,12 @@
 import type { LocationPoint, LocationSource } from '@native-location/shared';
 import * as Location from 'expo-location';
+import { Linking } from 'react-native';
 
-import { FOREGROUND_INTERVAL_MS, MIN_DISTANCE_METERS } from '../config';
 import { LocationUploader } from '../realtime/uploader';
+import {
+  DEFAULT_SAMPLE_INTERVAL_MS,
+  isSupportedSampleInterval,
+} from './sample-intervals';
 
 /** 后台定位 Task 名称（预留，Phase 2 启用） */
 export const BACKGROUND_LOCATION_TASK = 'NATIVE_LOCATION_BACKGROUND';
@@ -10,29 +14,45 @@ export const BACKGROUND_LOCATION_TASK = 'NATIVE_LOCATION_BACKGROUND';
 export type TrackingStatus = {
   running: boolean;
   permission: Location.PermissionStatus | 'undetermined';
+  backgroundPermission: Location.PermissionStatus | 'undetermined';
   lastPoint: LocationPoint | null;
   message: string;
+  serverPayload: unknown | null;
+  sampleIntervalMs: number;
 };
 
 type StatusListener = (status: TrackingStatus) => void;
 
 export class LocationTracker {
-  private subscription: Location.LocationSubscription | null = null;
+  private sampleTimer: ReturnType<typeof setInterval> | null = null;
+  private captureGeneration = 0;
+  private captureInFlight = false;
   private uploader: LocationUploader;
   private lastPoint: LocationPoint | null = null;
+  private sampleIntervalMs = DEFAULT_SAMPLE_INTERVAL_MS;
   private status: TrackingStatus = {
     running: false,
     permission: 'undetermined',
+    backgroundPermission: 'undetermined',
     lastPoint: null,
     message: '未启动',
+    serverPayload: null,
+    sampleIntervalMs: DEFAULT_SAMPLE_INTERVAL_MS,
   };
 
   constructor(
     private readonly deviceId: string,
     private readonly onStatus?: StatusListener,
   ) {
-    this.uploader = new LocationUploader((message) => {
-      this.patchStatus({ message });
+    this.uploader = new LocationUploader((event) => {
+      if (event.kind === 'payload') {
+        this.patchStatus({
+          serverPayload: event.data,
+          message: '服务端已确认',
+        });
+        return;
+      }
+      this.patchStatus({ message: event.message });
     });
   }
 
@@ -40,74 +60,109 @@ export class LocationTracker {
     return this.status;
   }
 
-  async requestForegroundPermission() {
-    const current = await Location.getForegroundPermissionsAsync();
-    if (current.granted) {
-      this.patchStatus({ permission: current.status });
-      return current;
+  async refreshPermissionsFromSystem() {
+    const foreground = await Location.getForegroundPermissionsAsync();
+    let backgroundStatus: Location.PermissionStatus | 'undetermined' =
+      'undetermined';
+    try {
+      const background = await Location.getBackgroundPermissionsAsync();
+      backgroundStatus = background.status;
+    } catch {
+      backgroundStatus = 'undetermined';
     }
 
-    const requested = await Location.requestForegroundPermissionsAsync();
-    this.patchStatus({ permission: requested.status });
-    return requested;
-  }
-
-  /**
-   * 预留：后台定位权限与 Task。
-   * MVP 不自动启动后台追踪，避免过早触发系统限制。
-   */
-  async prepareBackgroundPermission() {
-    const foreground = await this.requestForegroundPermission();
-    if (!foreground.granted) {
-      return { ok: false as const, reason: 'foreground_denied' };
-    }
-
-    const background = await Location.requestBackgroundPermissionsAsync();
     this.patchStatus({
-      message: background.granted
-        ? '后台定位权限已授予（尚未启用后台追踪）'
-        : '后台定位权限未授予（前台仍可用）',
+      permission: foreground.status,
+      backgroundPermission: backgroundStatus,
     });
 
-    return {
-      ok: background.granted,
-      status: background.status,
-    };
+    if (!foreground.granted && this.status.running) {
+      await this.stop();
+      this.patchStatus({
+        message: '定位权限已关闭，已停止追踪',
+        permission: foreground.status,
+        backgroundPermission: backgroundStatus,
+      });
+    }
+
+    return foreground;
   }
 
-  async startForegroundTracking() {
-    const permission = await this.requestForegroundPermission();
-    if (!permission.granted) {
+  async requestLocationPermissions() {
+    const current = await Location.getForegroundPermissionsAsync();
+    const foreground = current.granted
+      ? current
+      : await Location.requestForegroundPermissionsAsync();
+    this.patchStatus({ permission: foreground.status });
+
+    if (!foreground.granted) {
+      if (this.status.running) {
+        await this.stop();
+      }
       this.patchStatus({
         running: false,
         message: '未获得前台定位权限',
+        permission: foreground.status,
       });
+      return { foreground, background: null };
+    }
+
+    try {
+      const background = await Location.requestBackgroundPermissionsAsync();
+      this.patchStatus({
+        backgroundPermission: background.status,
+        message: background.granted
+          ? '前台与后台定位权限已授予'
+          : '前台权限已授予，后台权限未授予（前台追踪仍可用）',
+      });
+      return { foreground, background };
+    } catch (error) {
+      const detail =
+        error instanceof Error ? error.message : '后台权限申请失败';
+      this.patchStatus({
+        message: `前台权限已授予（后台：${detail}）`,
+      });
+      return { foreground, background: null };
+    }
+  }
+
+  async openSystemSettingsForRevoke() {
+    await Linking.openSettings();
+  }
+
+  async setSampleIntervalMs(intervalMs: number) {
+    if (!isSupportedSampleInterval(intervalMs)) {
+      throw new Error('不支持的采集间隔');
+    }
+
+    this.sampleIntervalMs = intervalMs;
+    this.patchStatus({ sampleIntervalMs: intervalMs });
+
+    if (this.status.running) {
+      await this.startSampling();
+      this.patchStatus({
+        running: true,
+        message: '前台定位追踪中',
+      });
+    }
+  }
+
+  async startForegroundTracking() {
+    const { foreground } = await this.requestLocationPermissions();
+    if (!foreground.granted) {
       throw new Error('前台定位权限被拒绝');
     }
 
-    await this.stop();
     this.uploader.connect();
-
-    this.subscription = await Location.watchPositionAsync(
-      {
-        accuracy: Location.Accuracy.Balanced,
-        timeInterval: FOREGROUND_INTERVAL_MS,
-        distanceInterval: MIN_DISTANCE_METERS,
-      },
-      (position) => {
-        void this.handlePosition(position, 'foreground');
-      },
-    );
-
     this.patchStatus({
       running: true,
       message: '前台定位追踪中',
     });
+    await this.startSampling();
   }
 
   async stop() {
-    this.subscription?.remove();
-    this.subscription = null;
+    this.stopSampling();
     this.uploader.disconnect();
     this.patchStatus({
       running: false,
@@ -115,10 +170,60 @@ export class LocationTracker {
     });
   }
 
-  private async handlePosition(
+  private stopSampling() {
+    this.captureGeneration += 1;
+    if (this.sampleTimer !== null) {
+      clearInterval(this.sampleTimer);
+      this.sampleTimer = null;
+    }
+  }
+
+  private async startSampling() {
+    this.stopSampling();
+    const generation = this.captureGeneration;
+
+    // 各端按固定间隔取当前点并上报，不因坐标未变而跳过
+    await this.captureCurrentPosition(generation);
+    if (generation !== this.captureGeneration) {
+      return;
+    }
+    this.sampleTimer = setInterval(() => {
+      void this.captureCurrentPosition(generation);
+    }, this.sampleIntervalMs);
+  }
+
+  private async captureCurrentPosition(generation: number) {
+    if (this.captureInFlight || generation !== this.captureGeneration) {
+      return;
+    }
+    this.captureInFlight = true;
+    try {
+      const position = await Location.getCurrentPositionAsync({
+        accuracy: Location.Accuracy.Balanced,
+      });
+      await this.emitPosition(position, 'foreground', generation);
+    } catch (error) {
+      if (generation !== this.captureGeneration) {
+        return;
+      }
+      const message = error instanceof Error ? error.message : '定位失败';
+      this.patchStatus({ message });
+    } finally {
+      this.captureInFlight = false;
+    }
+  }
+
+  private async emitPosition(
     position: Location.LocationObject,
     source: LocationSource,
+    generation: number,
   ) {
+    if (generation !== this.captureGeneration) {
+      return;
+    }
+
+    const sampledAt = new Date();
+    // expo-location：iOS Core Location、Android Location、Web Geolocation 均为 WGS84
     const point: LocationPoint = {
       deviceId: this.deviceId,
       latitude: position.coords.latitude,
@@ -127,7 +232,7 @@ export class LocationTracker {
       altitude: position.coords.altitude,
       speed: position.coords.speed,
       heading: position.coords.heading,
-      recordedAt: new Date(position.timestamp).toISOString(),
+      recordedAt: sampledAt.toISOString(),
       source,
     };
 

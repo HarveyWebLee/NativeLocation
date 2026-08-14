@@ -7,7 +7,7 @@ coverage
 build
 pnpm-lock.yaml
 *.tsbuildinfo
-apps/mobile/.git.bak.mobile
 apps/api/prisma/migrations
 **/*.min.js
 **/*.min.css
+.cursor/skills/tamagui/llms.txt

@@ -1,0 +1,15 @@
+---
+description: 手机端 UI 必须按仓库内 Tamagui 官方 llms.txt 开发
+globs: apps/mobile/**/*.{ts,tsx,js,jsx}
+alwaysApply: false
+---
+
+# Tamagui 开发约定
+
+改 `apps/mobile` 界面或样式时：
+
+1. 先读并遵循 `.cursor/skills/tamagui/SKILL.md`。
+2. API、配置、组件用法以 `.cursor/skills/tamagui/llms.txt` 为准（来源 [https://tamagui.dev/llms.txt](https://tamagui.dev/llms.txt)）。用 Grep 查章节，禁止凭记忆编造 props。
+3. 组件取文档中的最新稳定版本；配置用 Config v5。
+4. 对照 `guides/expo` 与 `guides/metro`，兼容本仓库 Expo SDK 54。
+5. UI 与交互必须同时考虑 iOS 与 Android（见 `platform-ios-android` 规则）。

@@ -2,12 +2,27 @@ node_modules/
 dist/
 .expo/
 .turbo/
-.env
-.env.local
-apps/api/.env
 *.log
 coverage/
 .DS_Store
 *.tsbuildinfo
-apps/mobile/.git.bak.mobile/
 .cursor/hooks/*.log
+
+# 环境变量：忽略真实配置，保留 *.example 模板
+.env
+.env.*
+!.env.example
+!.env.*.example
+
+# 证书、签名、商店与推送凭据（勿入库）
+*.pem
+*.p8
+*.p12
+*.key
+*.jks
+*.keystore
+*.mobileprovision
+google-services.json
+GoogleService-Info.plist
+credentials.json
+*-service-account.json

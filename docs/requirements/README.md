@@ -7,6 +7,7 @@
 | 文档                                                       | 状态          | 说明                     |
 | ---------------------------------------------------------- | ------------- | ------------------------ |
 | [mvp-foreground-location.md](./mvp-foreground-location.md) | 已确认（MVP） | 前台定位采集、上报与落库 |
+| [production-release.md](./production-release.md)           | 已确认        | 生产环境发布准备         |
 
 明细与验收以产品总 FRD 为准：[../functional-requirements.md](../functional-requirements.md)。
 

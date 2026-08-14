@@ -14,7 +14,6 @@ export default tseslint.config(
       '**/.turbo/**',
       '**/coverage/**',
       'apps/api/prisma/migrations/**',
-      'apps/mobile/.git.bak.mobile/**',
       'eslint.config.mjs',
       'commitlint.config.cjs',
       'lint-staged.config.mjs',

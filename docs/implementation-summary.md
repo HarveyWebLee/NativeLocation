@@ -2,12 +2,13 @@
 
 本文档总结当前 monorepo 已落地的架构与能力（MVP）。
 
-| 关联         | 路径                                                                                 |
-| ------------ | ------------------------------------------------------------------------------------ |
-| 文档目录     | [README.md](./README.md)                                                             |
-| 产品总 FRD   | [functional-requirements.md](./functional-requirements.md)                           |
-| MVP 业务需求 | [requirements/mvp-foreground-location.md](./requirements/mvp-foreground-location.md) |
-| MVP 架构决策 | [architecture/mvp-technical-decisions.md](./architecture/mvp-technical-decisions.md) |
+| 关联         | 路径                                                                                                                                                   |
+| ------------ | ------------------------------------------------------------------------------------------------------------------------------------------------------ |
+| 文档目录     | [README.md](./README.md)                                                                                                                               |
+| 产品总 FRD   | [functional-requirements.md](./functional-requirements.md)                                                                                             |
+| MVP 业务需求 | [requirements/mvp-foreground-location.md](./requirements/mvp-foreground-location.md)                                                                   |
+| MVP 架构决策 | [architecture/mvp-technical-decisions.md](./architecture/mvp-technical-decisions.md)                                                                   |
+| 生产发布     | [requirements/production-release.md](./requirements/production-release.md)、[architecture/production-release.md](./architecture/production-release.md) |
 
 ## 1. 目标
 
@@ -22,15 +23,16 @@
 
 ## 2. 技术选型
 
-| 层级     | 选型                                | 说明                       |
-| -------- | ----------------------------------- | -------------------------- |
-| Monorepo | pnpm workspaces + Turborepo         | 统一依赖与任务编排         |
-| 手机端   | Expo **SDK 54** + React Native 0.81 | 对齐当前 Expo Go（SDK 54） |
-| 后端     | NestJS 11                           | HTTP + 原生 WebSocket      |
-| ORM      | Prisma 6                            | PostgreSQL                 |
-| 数据库   | PostgreSQL 16（Docker）             | 宿主机端口 **16875**       |
-| 校验契约 | Zod（`packages/shared`）            | 前后端共用                 |
-| Redis    | 不上                                | MVP 单实例足够，后续再加   |
+| 层级      | 选型                                | 说明                                                          |
+| --------- | ----------------------------------- | ------------------------------------------------------------- |
+| Monorepo  | pnpm workspaces + Turborepo         | 统一依赖与任务编排                                            |
+| 手机端    | Expo **SDK 54** + React Native 0.81 | 对齐当前 Expo Go（SDK 54）                                    |
+| 后端      | NestJS 11                           | HTTP + 原生 WebSocket                                         |
+| ORM       | Prisma 6                            | PostgreSQL                                                    |
+| 数据库    | PostgreSQL 16（Docker）             | 宿主机端口 **16875**                                          |
+| 校验契约  | Zod（`packages/shared`）            | 前后端共用                                                    |
+| Redis     | 不上                                | MVP 单实例足够，后续再加                                      |
+| 手机端 UI | Tamagui（Config v5）                | 见 [architecture/tamagui-ui.md](./architecture/tamagui-ui.md) |
 
 ## 3. 目录结构
 
@@ -66,13 +68,13 @@ NativeLocation/
 
 ### 4.1 手机端（`apps/mobile`）
 
-| 模块                         | 职责                                 |
-| ---------------------------- | ------------------------------------ |
-| `src/device.ts`              | 注册设备，本地持久化 `deviceId`      |
-| `src/location/tracker.ts`    | 前台权限、watch、节流上报            |
-| `src/location/background.ts` | 后台 Task 预留（未默认启用）         |
-| `src/realtime/uploader.ts`   | WS 主路径 + HTTP 兜底 + 本地队列     |
-| `App.tsx`                    | 权限开关、状态展示、后台权限预留按钮 |
+| 模块                         | 职责                                     |
+| ---------------------------- | ---------------------------------------- |
+| `src/device.ts`              | 注册设备，本地持久化 `deviceId`          |
+| `src/location/tracker.ts`    | 前台权限、watch、节流上报                |
+| `src/location/background.ts` | 后台 Task 预留（未默认启用）             |
+| `src/realtime/uploader.ts`   | WS 主路径 + HTTP 兜底 + 本地队列         |
+| `App.tsx`                    | Tamagui 主界面：权限、开启定位、采集频率 |
 
 配置要点：
 
@@ -96,7 +98,7 @@ NativeLocation/
 数据落库表：
 
 - `Device`：设备标识、平台、展示名
-- `LocationPoint`：经纬度、精度、速度、航向、`recordedAt`、`source`（foreground/background）
+- `LocationPoint`：WGS84 经纬度、精度、速度、航向、`recordedAt`、`source`
 
 索引：`(deviceId, recordedAt DESC)` 便于按设备查轨迹。
 
@@ -124,11 +126,15 @@ pnpm db:logs
 
 ### 5.2 环境变量
 
-| 文件               | 用途                                      |
-| ------------------ | ----------------------------------------- |
-| 根目录 `.env`      | 文档/示例同步                             |
-| `apps/api/.env`    | Prisma / NestJS `DATABASE_URL`、`PORT`    |
-| `apps/mobile/.env` | `EXPO_PUBLIC_API_*`（Expo 读取 app 目录） |
+本地只维护**仓库根目录** `.env`（从 `.env.example` 复制）。不要再创建 `apps/api/.env` 或 `apps/mobile/.env`。
+
+| 场景         | 来源                                                                      |
+| ------------ | ------------------------------------------------------------------------- |
+| 本地开发     | 根目录 `.env`（Nest、Prisma CLI、Expo、`pnpm db:up`）                     |
+| VPS 生产 API | `.env.production` 由 Docker Compose 注入容器；镜像内**没有**开发用 `.env` |
+| EAS 独立包   | Expo 控制台的 `EXPO_PUBLIC_*`，构建时打进包内                             |
+
+加载时不覆盖已存在的 `process.env`，因此生产注入始终优先。
 
 ## 6. 本地联调流程
 
@@ -153,23 +159,27 @@ pnpm dev:mobile
 1. 手机与电脑同一 Wi‑Fi
 2. 用系统 **相机**扫终端二维码（新版 Expo Go 首页无扫码入口）
 3. 或 Safari 打开：`exp://<电脑局域网IP>:8881`
-4. App 内点「开始前台定位」，允许权限
+4. App 内点「开启定位」，允许权限
 5. 用 `pnpm db:studio` 或查 `LocationPoint` 表验证入库
 
-> 项目已降级为 **Expo SDK 54**，需与手机 Expo Go 支持的 SDK 一致。
+> 手机 Expo Go 需与项目 **Expo SDK 54** 一致。
 
 ## 7. 已预留、尚未实现
 
-| 项                         | 状态                                           |
-| -------------------------- | ---------------------------------------------- |
-| 后台持续定位上报           | 权限文案 / Task 名 / UI 入口已预留，默认不启动 |
-| 外部云转发 Adapter         | 未做，数据先落库                               |
-| Redis 限流 / 多实例 PubSub | MVP 不上                                       |
-| 账号体系 / 地图轨迹回放    | 未做                                           |
+| 项                         | 状态                                                               |
+| -------------------------- | ------------------------------------------------------------------ |
+| 后台持续定位上报           | 权限文案与 Task 占位已预留；申请权限时附带后台权限，不默认启动追踪 |
+| 外部云转发 Adapter         | 未做，数据先落库                                                   |
+| Redis 限流 / 多实例 PubSub | MVP 不上                                                           |
+| 账号体系 / 地图轨迹回放    | 未做                                                               |
 
-## 8. 关键决策回顾
+## 8. 生产构建与发布
 
-完整决策、影响面与备选方案见：[architecture/mvp-technical-decisions.md](./architecture/mvp-technical-decisions.md)。
+操作步骤（VPS、Nginx、EAS、商店材料、验收与排障）见 [deploy.md](./deploy.md)。决策见 [architecture/production-release.md](./architecture/production-release.md)。
+
+## 9. 关键决策回顾
+
+完整决策、影响面与备选方案见：[architecture/mvp-technical-decisions.md](./architecture/mvp-technical-decisions.md)、[architecture/tamagui-ui.md](./architecture/tamagui-ui.md)。
 
 1. **不用 Electron**：无法做 iOS/Android 正式手机端。
 2. **用 Expo 而非裸 RN CLI**：权限与调试更顺；当前用 SDK 54 对齐 Expo Go。

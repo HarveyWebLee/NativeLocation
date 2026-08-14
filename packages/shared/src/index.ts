@@ -31,6 +31,12 @@ export type LocationPoint = z.infer<typeof locationPointSchema>;
 export type LocationBatch = z.infer<typeof locationBatchSchema>;
 export type DeviceRegisterInput = z.infer<typeof deviceRegisterSchema>;
 
+/** 端侧系统定位与上报经纬度统一使用 WGS84（GPS / Core Location / Android Location） */
+export const LOCATION_CRS = 'WGS84' as const;
+
+export const API_KEY_HEADER = 'x-api-key';
+export const API_KEY_QUERY = 'apiKey';
+
 export const API_PATHS = {
   health: '/health',
   registerDevice: '/v1/devices/register',

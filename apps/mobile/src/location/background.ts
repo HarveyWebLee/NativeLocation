@@ -17,7 +17,3 @@ if (!TaskManager.isTaskDefined(BACKGROUND_LOCATION_TASK)) {
     console.log('background location task received', data);
   });
 }
-
-export async function isBackgroundTaskRegistered() {
-  return TaskManager.isTaskRegisteredAsync(BACKGROUND_LOCATION_TASK);
-}

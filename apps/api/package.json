@@ -15,8 +15,9 @@
     "test": "jest",
     "test:e2e": "jest --config ./test/jest-e2e.json",
     "prisma:generate": "node scripts/prisma-generate.mjs",
-    "prisma:migrate": "prisma migrate dev",
-    "prisma:studio": "prisma studio"
+    "prisma:migrate": "node ../../scripts/with-root-env.mjs prisma migrate dev",
+    "prisma:migrate:deploy": "prisma migrate deploy",
+    "prisma:studio": "node ../../scripts/with-root-env.mjs prisma studio"
   },
   "dependencies": {
     "@native-location/shared": "workspace:*",

@@ -4,9 +4,11 @@
 
 当前登记：
 
-| 文档                                                       | 状态   | 说明                   |
-| ---------------------------------------------------------- | ------ | ---------------------- |
-| [mvp-technical-decisions.md](./mvp-technical-decisions.md) | 已确认 | MVP 技术选型与关键决策 |
+| 文档                                                       | 状态   | 说明                                               |
+| ---------------------------------------------------------- | ------ | -------------------------------------------------- |
+| [mvp-technical-decisions.md](./mvp-technical-decisions.md) | 已确认 | MVP 技术选型与关键决策                             |
+| [tamagui-ui.md](./tamagui-ui.md)                           | 已确认 | 手机端 UI 采用 Tamagui，以官方 llms.txt 为开发依据 |
+| [production-release.md](./production-release.md)           | 已确认 | 生产 TLS、API Key、EAS 与 VPS 部署                 |
 
 ## 新文档必备章节
 

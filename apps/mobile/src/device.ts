@@ -2,7 +2,7 @@ import { API_PATHS } from '@native-location/shared';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { Platform } from 'react-native';
 
-import { API_HTTP_URL } from './config';
+import { API_HTTP_URL, apiAuthHeaders } from './config';
 
 const DEVICE_ID_KEY = 'native_location.device_id';
 
@@ -19,7 +19,7 @@ export async function getOrCreateDeviceId(): Promise<string> {
 
   const response = await fetch(`${API_HTTP_URL}${API_PATHS.registerDevice}`, {
     method: 'POST',
-    headers: { 'Content-Type': 'application/json' },
+    headers: apiAuthHeaders(),
     body: JSON.stringify({
       platform,
       displayName: `${platform}-device`,

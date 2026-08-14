@@ -47,6 +47,11 @@ function persistHash(hash) {
 
 const hash = schemaFingerprint();
 
+const envPath = path.join(repoRoot, '.env');
+if (existsSync(envPath) && typeof process.loadEnvFile === 'function') {
+  process.loadEnvFile(envPath);
+}
+
 if (clientExists() && storedHash() === hash) {
   console.log('Prisma Client 已是当前 schema，跳过 generate');
   process.exit(0);

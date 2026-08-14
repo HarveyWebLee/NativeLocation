@@ -1,4 +1,6 @@
-import { locationPointSchema } from '@native-location/shared';
+import type { IncomingMessage } from 'node:http';
+
+import { API_KEY_QUERY, locationPointSchema } from '@native-location/shared';
 import { Logger } from '@nestjs/common';
 import {
   OnGatewayConnection,
@@ -7,6 +9,7 @@ import {
 } from '@nestjs/websockets';
 import type { RawData, WebSocket } from 'ws';
 
+import { isApiKeyValid } from '../auth/api-key';
 import { LocationService } from './location.service';
 
 @WebSocketGateway({ path: '/v1/location/stream' })
@@ -17,7 +20,15 @@ export class LocationGateway
 
   constructor(private readonly locationService: LocationService) {}
 
-  handleConnection(client: WebSocket) {
+  handleConnection(client: WebSocket, request?: IncomingMessage) {
+    const url = new URL(request?.url ?? '/', 'http://localhost');
+    const presented = url.searchParams.get(API_KEY_QUERY) ?? undefined;
+    if (!isApiKeyValid(presented)) {
+      this.logger.warn('websocket unauthorized');
+      client.close(1008, 'unauthorized');
+      return;
+    }
+
     this.logger.log('location stream client connected');
     client.send(
       JSON.stringify({

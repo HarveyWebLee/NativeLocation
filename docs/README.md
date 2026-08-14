@@ -4,12 +4,14 @@
 
 ## 索引
 
-| 类型            | 路径                                                       | 说明                               |
-| --------------- | ---------------------------------------------------------- | ---------------------------------- |
-| 产品总 FRD      | [functional-requirements.md](./functional-requirements.md) | MVP 功能、数据、接口、非功能与验收 |
-| 独立业务需求    | [requirements/](./requirements/)                           | 每个新的独立需求一份文档           |
-| 架构 / 实现总览 | [implementation-summary.md](./implementation-summary.md)   | 已落地技术选型、目录、联调与预留项 |
-| 独立架构决策    | [architecture/](./architecture/)                           | 技术选型与方向调整的决策记录       |
+| 类型            | 路径                                                       | 说明                                 |
+| --------------- | ---------------------------------------------------------- | ------------------------------------ |
+| 产品总 FRD      | [functional-requirements.md](./functional-requirements.md) | MVP 功能、数据、接口、非功能与验收   |
+| 独立业务需求    | [requirements/](./requirements/)                           | 每个新的独立需求一份文档             |
+| 架构 / 实现总览 | [implementation-summary.md](./implementation-summary.md)   | 已落地技术选型、目录、联调与预留项   |
+| 独立架构决策    | [architecture/](./architecture/)                           | 技术选型与方向调整的决策记录         |
+| 生产构建发布    | [deploy.md](./deploy.md)                                   | VPS、Nginx、EAS 构建、上架与验收手册 |
+| 隐私政策草稿    | [legal/privacy-policy.md](./legal/privacy-policy.md)       | 上架前需托管为 HTTPS 页面            |
 
 ## 何时写哪份
 

@@ -1,37 +1,83 @@
 import './src/location/background';
 
+import { LOCATION_CRS } from '@native-location/shared';
 import { StatusBar } from 'expo-status-bar';
 import { useEffect, useRef, useState } from 'react';
+import { AppState, type AppStateStatus, Platform } from 'react-native';
 import {
-  ActivityIndicator,
-  Platform,
-  Pressable,
-  StyleSheet,
+  SafeAreaProvider,
+  useSafeAreaInsets,
+} from 'react-native-safe-area-context';
+import {
+  Button,
+  Circle,
+  ScrollView,
+  Separator,
+  Spinner,
+  TamaguiProvider,
   Text,
-  View,
-} from 'react-native';
-import { SafeAreaProvider, SafeAreaView } from 'react-native-safe-area-context';
+  Theme,
+  ToggleGroup,
+  XStack,
+  YStack,
+} from 'tamagui';
 
 import { getOrCreateDeviceId } from './src/device';
+import {
+  DEFAULT_SAMPLE_INTERVAL_MS,
+  LOCATION_SAMPLE_INTERVALS,
+} from './src/location/sample-intervals';
 import { LocationTracker, type TrackingStatus } from './src/location/tracker';
+import { FormattedJson } from './src/ui/formatted-json';
+import { tamaguiConfig } from './tamagui.config';
+
+function permissionLabel(status: TrackingStatus['permission']): string {
+  if (status === 'granted') {
+    return '已授权';
+  }
+  if (status === 'denied') {
+    return '已拒绝';
+  }
+  return '未申请';
+}
 
 export default function App() {
   return (
     <SafeAreaProvider>
-      <AppContent />
+      <TamaguiRoot />
     </SafeAreaProvider>
   );
 }
 
+function TamaguiRoot() {
+  const insets = useSafeAreaInsets();
+
+  return (
+    <TamaguiProvider
+      config={tamaguiConfig}
+      defaultTheme="light"
+      insets={insets}
+    >
+      <Theme name="green">
+        <AppContent />
+      </Theme>
+    </TamaguiProvider>
+  );
+}
+
 function AppContent() {
+  const insets = useSafeAreaInsets();
   const trackerRef = useRef<LocationTracker | null>(null);
   const [deviceId, setDeviceId] = useState<string | null>(null);
   const [bootError, setBootError] = useState<string | null>(null);
   const [status, setStatus] = useState<TrackingStatus>({
     running: false,
     permission: 'undetermined',
+    backgroundPermission: 'undetermined',
     lastPoint: null,
     message: '初始化中',
+    serverPayload: null,
+    sampleIntervalMs: DEFAULT_SAMPLE_INTERVAL_MS,
   });
 
   useEffect(() => {
@@ -46,11 +92,11 @@ function AppContent() {
         const tracker = new LocationTracker(id, setStatus);
         trackerRef.current = tracker;
         setDeviceId(id);
+        await tracker.refreshPermissionsFromSystem();
       } catch (error) {
         if (cancelled) {
           return;
         }
-        // Web 预览：接口不可达时仍展示主界面布局
         if (Platform.OS === 'web') {
           const previewId = 'web-preview';
           const tracker = new LocationTracker(previewId, setStatus);
@@ -76,164 +122,287 @@ function AppContent() {
     };
   }, []);
 
+  useEffect(() => {
+    const onAppStateChange = (next: AppStateStatus) => {
+      if (next !== 'active') {
+        return;
+      }
+      void trackerRef.current?.refreshPermissionsFromSystem();
+    };
+
+    const subscription = AppState.addEventListener('change', onAppStateChange);
+    return () => {
+      subscription.remove();
+    };
+  }, []);
+
   if (bootError) {
     return (
-      <SafeAreaView style={styles.container}>
-        <Text style={styles.title}>NativeLocation</Text>
-        <Text style={styles.error}>{bootError}</Text>
-        <Text style={styles.hint}>
+      <YStack flex={1} background="$background" p="$5" gap="$3">
+        <Text fontSize="$8" fontWeight="700" color="$color12">
+          NativeLocation
+        </Text>
+        <Text color="$red10" lineHeight="$5">
+          {bootError}
+        </Text>
+        <Text color="$color10" lineHeight="$5">
           请确认 API 已启动，并检查 EXPO_PUBLIC_API_HOST（真机需局域网 IP）。
         </Text>
-      </SafeAreaView>
+      </YStack>
     );
   }
 
   if (!deviceId || !trackerRef.current) {
     return (
-      <SafeAreaView style={styles.container}>
-        <ActivityIndicator size="large" color="#0F766E" />
-        <Text style={styles.hint}>正在注册设备…</Text>
-      </SafeAreaView>
+      <YStack
+        flex={1}
+        background="$background"
+        items="center"
+        justify="center"
+        gap="$3"
+      >
+        <Spinner size="large" color="$green10" />
+        <Text color="$color10">正在注册设备…</Text>
+      </YStack>
     );
   }
 
   const tracker = trackerRef.current;
+  const hasForegroundPermission = status.permission === 'granted';
+  const intervalValue = String(status.sampleIntervalMs);
+  const lastPoint = status.lastPoint;
+
+  const onToggleTracking = () => {
+    if (status.running) {
+      void tracker.stop();
+      return;
+    }
+    void tracker.startForegroundTracking().catch((error: unknown) => {
+      const message = error instanceof Error ? error.message : '开启定位失败';
+      setStatus((prev) => ({ ...prev, message }));
+    });
+  };
 
   return (
-    <SafeAreaView style={styles.container}>
+    <YStack flex={1} background="$background">
       <StatusBar style="dark" />
-      <Text style={styles.title}>NativeLocation</Text>
-      <Text style={styles.subtitle}>定位上报 MVP</Text>
+      <ScrollView flex={1} showsVerticalScrollIndicator={false}>
+        <YStack gap="$5" pt={Math.max(insets.top, 20)} px="$5" pb="$4">
+          <XStack items="center" justify="space-between">
+            <YStack gap={2}>
+              <Text
+                fontSize="$1"
+                letterSpacing={1.2}
+                color="$green10"
+                fontWeight="600"
+              >
+                LOCATION
+              </Text>
+              <Text fontSize="$8" fontWeight="800" color="$color12">
+                NativeLocation
+              </Text>
+            </YStack>
+            <XStack
+              items="center"
+              gap="$2"
+              px="$3"
+              py="$2"
+              rounded="$10"
+              background={status.running ? '$green4' : '$color4'}
+            >
+              <Circle
+                size={8}
+                background={status.running ? '$green10' : '$color8'}
+              />
+              <Text
+                fontSize="$2"
+                fontWeight="600"
+                color={status.running ? '$green11' : '$color11'}
+              >
+                {status.running ? '定位中' : '未开启'}
+              </Text>
+            </XStack>
+          </XStack>
 
-      <View style={styles.card}>
-        <Text style={styles.label}>Device ID</Text>
-        <Text style={styles.value}>{deviceId}</Text>
-        <Text style={styles.label}>状态</Text>
-        <Text style={styles.value}>{status.message}</Text>
-        <Text style={styles.label}>权限</Text>
-        <Text style={styles.value}>{status.permission}</Text>
-        {status.lastPoint ? (
-          <>
-            <Text style={styles.label}>最近坐标</Text>
-            <Text style={styles.value}>
-              {status.lastPoint.latitude.toFixed(6)},{' '}
-              {status.lastPoint.longitude.toFixed(6)}
+          <YStack
+            gap="$3"
+            p="$5"
+            rounded="$8"
+            background="$color2"
+            borderWidth={1}
+            borderColor="$color5"
+          >
+            <Text fontSize="$2" color="$color10" fontWeight="600">
+              {`当前坐标 · ${LOCATION_CRS}`}
             </Text>
-            <Text style={styles.meta}>
-              {status.lastPoint.recordedAt} · {status.lastPoint.source}
+            {lastPoint ? (
+              <>
+                <Text
+                  fontSize={34}
+                  fontWeight="700"
+                  color="$color12"
+                  letterSpacing={-0.6}
+                >
+                  {lastPoint.latitude.toFixed(6)}
+                </Text>
+                <Text
+                  fontSize={34}
+                  fontWeight="700"
+                  color="$color12"
+                  letterSpacing={-0.6}
+                  mt={-8}
+                >
+                  {lastPoint.longitude.toFixed(6)}
+                </Text>
+                <Text fontSize="$2" color="$color10">
+                  {lastPoint.recordedAt.replace('T', ' ').replace('Z', ' UTC')}
+                </Text>
+              </>
+            ) : (
+              <YStack py="$4">
+                <Text fontSize="$7" fontWeight="600" color="$color8">
+                  — —
+                </Text>
+                <Text fontSize="$3" color="$color10" mt="$2">
+                  开启定位后显示经纬度
+                </Text>
+              </YStack>
+            )}
+            <Text fontSize="$3" color="$color11" lineHeight="$4">
+              {status.message}
             </Text>
-          </>
-        ) : null}
-      </View>
+            {status.serverPayload !== null ? (
+              <YStack gap="$2" mt="$2">
+                <Text fontSize="$2" fontWeight="600" color="$color10">
+                  服务端
+                </Text>
+                <FormattedJson value={status.serverPayload} />
+              </YStack>
+            ) : null}
+          </YStack>
 
-      <View style={styles.actions}>
-        <Pressable
-          style={[styles.button, styles.primary]}
+          <YStack
+            rounded="$7"
+            background="$color2"
+            borderWidth={1}
+            borderColor="$color5"
+            overflow="hidden"
+          >
+            <InfoRow label="设备" value={deviceId} />
+            <Separator borderColor="$color5" />
+            <InfoRow
+              label="前台权限"
+              value={permissionLabel(status.permission)}
+            />
+            <Separator borderColor="$color5" />
+            <InfoRow
+              label="后台权限"
+              value={permissionLabel(status.backgroundPermission)}
+            />
+          </YStack>
+
+          <YStack gap="$3">
+            <Text fontSize="$5" fontWeight="700" color="$color12">
+              采集频率
+            </Text>
+            <ToggleGroup
+              type="single"
+              value={intervalValue}
+              disableDeactivation
+              orientation="horizontal"
+              onValueChange={(value) => {
+                const next = Array.isArray(value) ? value[0] : value;
+                if (!next) {
+                  return;
+                }
+                void tracker.setSampleIntervalMs(Number(next));
+              }}
+            >
+              <XStack flexWrap="wrap" gap="$2">
+                {LOCATION_SAMPLE_INTERVALS.map((option) => {
+                  const selected =
+                    option.intervalMs === status.sampleIntervalMs;
+                  return (
+                    <ToggleGroup.Item
+                      key={option.id}
+                      unstyled
+                      value={String(option.intervalMs)}
+                      flexGrow={1}
+                      flexBasis="46%"
+                      minWidth="46%"
+                      items="center"
+                      justify="center"
+                      py="$3"
+                      px="$3"
+                      rounded="$4"
+                      borderWidth={1}
+                      borderColor={selected ? '$green8' : '$color5'}
+                      background={selected ? '$green4' : '$color2'}
+                      activeStyle={{
+                        background: '$green4',
+                        borderColor: '$green8',
+                      }}
+                    >
+                      <Text
+                        fontSize="$3"
+                        fontWeight={selected ? '700' : '500'}
+                        color={selected ? '$green11' : '$color11'}
+                        numberOfLines={1}
+                      >
+                        {option.label}
+                      </Text>
+                    </ToggleGroup.Item>
+                  );
+                })}
+              </XStack>
+            </ToggleGroup>
+          </YStack>
+        </YStack>
+      </ScrollView>
+
+      <YStack
+        px="$5"
+        pt="$3"
+        pb={Math.max(insets.bottom, 16)}
+        gap="$2"
+        borderTopWidth={1}
+        borderColor="$color5"
+        background="$background"
+      >
+        <Button
+          size="$6"
+          theme={status.running ? 'red' : 'green'}
+          onPress={onToggleTracking}
+        >
+          {status.running ? '停止定位' : '开启定位'}
+        </Button>
+        <Button
+          size="$4"
+          chromeless
           onPress={() => {
-            void tracker.startForegroundTracking();
+            if (hasForegroundPermission) {
+              void tracker.openSystemSettingsForRevoke();
+              return;
+            }
+            void tracker.requestLocationPermissions();
           }}
         >
-          <Text style={styles.buttonText}>开始前台定位</Text>
-        </Pressable>
-        <Pressable
-          style={[styles.button, styles.secondary]}
-          onPress={() => {
-            void tracker.stop();
-          }}
-        >
-          <Text style={styles.buttonText}>停止</Text>
-        </Pressable>
-        <Pressable
-          style={[styles.button, styles.ghost]}
-          onPress={() => {
-            void tracker.prepareBackgroundPermission();
-          }}
-        >
-          <Text style={styles.ghostText}>预留：申请后台权限</Text>
-        </Pressable>
-      </View>
-    </SafeAreaView>
+          {hasForegroundPermission ? '取消授权' : '申请定位权限'}
+        </Button>
+      </YStack>
+    </YStack>
   );
 }
 
-const styles = StyleSheet.create({
-  container: {
-    flex: 1,
-    backgroundColor: '#F0FDFA',
-    paddingHorizontal: 24,
-    paddingTop: 48,
-    gap: 16,
-  },
-  title: {
-    fontSize: 28,
-    fontWeight: '700',
-    color: '#134E4A',
-  },
-  subtitle: {
-    fontSize: 14,
-    color: '#0F766E',
-    marginBottom: 8,
-  },
-  card: {
-    backgroundColor: '#FFFFFF',
-    borderRadius: 16,
-    padding: 16,
-    gap: 6,
-    borderWidth: 1,
-    borderColor: '#99F6E4',
-  },
-  label: {
-    marginTop: 8,
-    fontSize: 12,
-    color: '#5EEAD4',
-    textTransform: 'uppercase',
-    letterSpacing: 0.6,
-  },
-  value: {
-    fontSize: 16,
-    color: '#115E59',
-  },
-  meta: {
-    fontSize: 12,
-    color: '#6B7280',
-  },
-  actions: {
-    gap: 10,
-    marginTop: 8,
-  },
-  button: {
-    borderRadius: 12,
-    paddingVertical: 14,
-    alignItems: 'center',
-  },
-  primary: {
-    backgroundColor: '#0F766E',
-  },
-  secondary: {
-    backgroundColor: '#115E59',
-  },
-  ghost: {
-    backgroundColor: 'transparent',
-    borderWidth: 1,
-    borderColor: '#99F6E4',
-  },
-  buttonText: {
-    color: '#FFFFFF',
-    fontWeight: '600',
-    fontSize: 16,
-  },
-  ghostText: {
-    color: '#0F766E',
-    fontWeight: '600',
-    fontSize: 14,
-  },
-  hint: {
-    marginTop: 12,
-    color: '#6B7280',
-    lineHeight: 20,
-  },
-  error: {
-    color: '#B91C1C',
-    fontSize: 16,
-  },
-});
+function InfoRow({ label, value }: { label: string; value: string }) {
+  return (
+    <YStack px="$4" py="$3" gap="$1">
+      <Text fontSize="$2" color="$color10">
+        {label}
+      </Text>
+      <Text fontSize="$4" fontWeight="600" color="$color12" selectable>
+        {value}
+      </Text>
+    </YStack>
+  );
+}

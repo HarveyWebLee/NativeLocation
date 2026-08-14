@@ -11,4 +11,4 @@ alwaysApply: false
 - 避免 `any`；公开函数与复杂对象显式类型；少用断言。
 - 处理 null / 空数组 / 网络失败 / 权限失败，禁止空 catch。
 - Nest（`apps/api`）：模块化、DTO/校验与 Prisma 分层清晰。
-- Expo（`apps/mobile`）：查阅 SDK 57 文档后再写 API。
+- Expo（`apps/mobile`）：查阅 SDK 54 文档后再写 API。

@@ -32,6 +32,8 @@ Git `pre-commit` 会强制跑 `format + lint:fix + typecheck`；`commit-msg` 校
 - 不引入新依赖除非必要；优先 workspace 内已有库
 - 最小改动；行为变更时同步测试
 - 对外说明用简体中文
+- **iOS 与 Android 双端兼容**：业务与 UI 都必须在两套系统上可用（见 `.cursor/rules/platform-ios-android.mdc`）
+- **手机端 UI：Tamagui**。改 `apps/mobile` 界面时必须先读 `.cursor/skills/tamagui/SKILL.md`，并检索 `.cursor/skills/tamagui/llms.txt`（官方副本，来源 https://tamagui.dev/llms.txt），禁止凭记忆写组件 API
 
 ## Git 提交规范
 
@@ -49,8 +51,8 @@ Git `pre-commit` 会强制跑 `format + lint:fix + typecheck`；`commit-msg` 校
 
 ## Cursor 资产
 
-- Rules：根目录 `.cursorrules`（含 Git 提交规范）、`.cursor/rules/`（含需求先行）
-- Skills：`.cursor/skills/`（`code-quality-gate`、`git-commit-convention`）
+- Rules：`.cursor/rules/`（含需求先行、Git 提交、Tamagui、iOS/Android）；根目录 `.cursorrules` 仅作入口指向规则目录
+- Skills：`.cursor/skills/`（`code-quality-gate`、`git-commit-convention`、`tamagui`）
 - Hooks：`.cursor/hooks.json`
   - `afterFileEdit`：改文件后自动 Prettier + ESLint（含 import 顺序）
   - `beforeMCPExecution`：MCP 调用审计（敏感操作提示）
@@ -67,3 +69,5 @@ pnpm dev:mobile
 ```
 
 Expo 文档以 SDK 54 为准：https://docs.expo.dev/versions/v54.0.0/
+
+Tamagui 以仓库内 `.cursor/skills/tamagui/llms.txt` 为准：https://tamagui.dev/llms.txt

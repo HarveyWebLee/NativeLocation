@@ -1,0 +1,13 @@
+---
+description: 业务与 UI 必须同时兼容 iOS 与 Android
+alwaysApply: true
+---
+
+# iOS / Android 双端兼容
+
+业务功能与 UI 展示都必须在 **iOS 和 Android** 上可用、可验收。禁止只按单一系统或仅 Web 预览做完即视为完成。
+
+- 权限、定位、后台限制、通知、安全区、状态栏、手势、返回键等按两套系统分别处理差异，不要假设行为一致。
+- 使用 `Platform.OS` / 官方 API 分支；禁止用 Web-only DOM 或仅 iOS/仅 Android 的私有能力作为唯一实现。
+- Expo / React Native / Tamagui 以各库官方文档中的 native 行为为准；Web 仅辅助预览。
+- 改动后在说明中写清 iOS 与 Android 的差异与验证方式（真机或模拟器）。

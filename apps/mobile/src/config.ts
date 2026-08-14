@@ -1,3 +1,4 @@
+import { API_KEY_HEADER, API_KEY_QUERY } from '@native-location/shared';
 import { Platform } from 'react-native';
 
 /**
@@ -5,6 +6,7 @@ import { Platform } from 'react-native';
  * - Android 模拟器可用 10.0.2.2
  * - 真机请改成电脑局域网 IP
  * - Web 预览用 127.0.0.1（浏览器访问不到 10.0.2.2）
+ * 生产构建请设置 EXPO_PUBLIC_API_HTTP_URL / EXPO_PUBLIC_API_WS_URL（https / wss）
  */
 function resolveDevHost(): string {
   const fromEnv = process.env.EXPO_PUBLIC_API_HOST;
@@ -15,17 +17,33 @@ function resolveDevHost(): string {
 }
 
 const DEV_HOST = resolveDevHost();
-const DEV_PORT = process.env.EXPO_PUBLIC_API_PORT ?? '3000';
+const DEV_PORT = process.env.EXPO_PUBLIC_API_PORT ?? '18156';
 
 export const API_HTTP_URL =
   process.env.EXPO_PUBLIC_API_HTTP_URL ?? `http://${DEV_HOST}:${DEV_PORT}`;
 
-export const API_WS_URL =
+const API_WS_BASE =
   process.env.EXPO_PUBLIC_API_WS_URL ??
   `ws://${DEV_HOST}:${DEV_PORT}/v1/location/stream`;
 
-/** 前台上报最小间隔（毫秒） */
-export const FOREGROUND_INTERVAL_MS = 3000;
+export const API_KEY = process.env.EXPO_PUBLIC_API_KEY ?? '';
 
-/** 位移阈值（米），小于该值可跳过上报 */
-export const MIN_DISTANCE_METERS = 5;
+export const API_WS_URL = withApiKeyQuery(API_WS_BASE);
+
+export function apiAuthHeaders(): Record<string, string> {
+  const headers: Record<string, string> = {
+    'Content-Type': 'application/json',
+  };
+  if (API_KEY) {
+    headers[API_KEY_HEADER] = API_KEY;
+  }
+  return headers;
+}
+
+function withApiKeyQuery(wsUrl: string): string {
+  if (!API_KEY) {
+    return wsUrl;
+  }
+  const separator = wsUrl.includes('?') ? '&' : '?';
+  return `${wsUrl}${separator}${API_KEY_QUERY}=${encodeURIComponent(API_KEY)}`;
+}

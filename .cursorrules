@@ -1,91 +1,10 @@
 # NativeLocation — Cursor Rules
 
-定位 App monorepo：Expo（`apps/mobile`）+ NestJS（`apps/api`）+ 共享契约（`packages/shared`）。
+约定以根目录 `AGENTS.md` 与 `.cursor/rules/` 为准。
 
-- 先读根目录 `AGENTS.md`，再改代码。
-- 用户提出需求或架构调整时：先分析并确认待定项，更新/新增 `docs/` 文档后再开发（见 `.cursor/rules/requirements-first.mdc`）。
-- 包边界：`apps/api` NestJS、`apps/mobile` Expo、`packages/shared` 契约、`packages/tsconfig` TS 基座。
-- 改完必须可通过：`pnpm format`、`pnpm lint:fix`、`pnpm typecheck`（或 `pnpm precommit`）。
-- 不新增依赖除非必要；优先既有库与 workspace 包。
-- 最小改动；不擅自扩大范围；不静默吞错。
-- 对用户说明使用简体中文。
-
----
-
-## Git 提交消息生成规范
-
-生成或代写 Git commit message 时，必须遵守下列约定。机器校验见 `commitlint.config.cjs` 与 `.husky/commit-msg`。
-
-### 格式
-
-```text
-<type>(<scope>): <subject>
-
-[optional body]
-
-[optional footer]
-```
-
-- 提交说明使用**简体中文**
-- `type`：必填
-- `scope`：可选（kebab-case）；按改动所在包选择，跨包取主要影响面
-- `subject`：必填；祈使句；**不加句号**；不超过 72 个字符
-- header 整行不超过 100 个字符
-- `body` / `footer`：可选；与 header 之间空一行
-- 破坏性变更在 footer 写 `BREAKING CHANGE:`
-
-### type
-
-| type | 含义 |
-| --- | --- |
-| `feat` | 新功能 |
-| `fix` | 缺陷修复 |
-| `docs` | 文档变更 |
-| `style` | 代码格式（不影响逻辑） |
-| `refactor` | 重构（非 feat / 非 fix） |
-| `perf` | 性能优化 |
-| `test` | 测试相关 |
-| `build` | 构建系统或外部依赖 |
-| `ci` | CI 配置与脚本 |
-| `chore` | 杂项（工具、配置等） |
-| `revert` | 回滚提交 |
-
-### scope（本仓库）
-
-| scope | 对应 |
-| --- | --- |
-| `api` | `apps/api` NestJS |
-| `mobile` | `apps/mobile` Expo |
-| `shared` | `packages/shared` 契约 |
-| `tooling` | ESLint / Prettier / Husky / Turbo |
-| `prisma` | Prisma schema / 迁移 |
-| `cursor` | `.cursor` 规则、技能与 `.cursorrules` |
-| `ci` | GitHub Actions 等 CI |
-
-### 生成原则
-
-1. 根据暂存/改动内容归纳「为什么」与「做了什么」，`subject` 信息量要足，禁止「改一下」「更新」等空泛描述。
-2. 一次提交一件事；message 与实际 diff 一致。
-3. `feat` = 全新能力；`fix` = 修缺陷；增强已有能力用 `feat` 或 `refactor`/`perf`（按实质选择），勿滥用 `chore`。
-4. **仅在用户明确要求时**才执行 `git commit` / `git push`；不跳过 hooks（`--no-verify`）；不擅自 amend / force push；不改 git config。
-5. 提交前先跑 `pnpm precommit`（format + lint:fix + typecheck）。
-6. 推荐用 heredoc 传递 message，保证格式正确：
-
-```bash
-git commit -m "$(cat <<'EOF'
-feat(api): 增加位置批量上报接口
-
-EOF
-)"
-```
-
-### 示例
-
-```text
-feat(shared): 补充位置批量上报 Zod 契约
-fix(api): 处理 WebSocket 断线后的校验错误
-fix(mobile): 修复前台定位权限申请失败
-docs(cursor): 补充 Git 提交规范说明
-chore(tooling): 统一 eslint 与 prettier 配置
-build(deps): 升级 Prisma 客户端
-```
+- 需求先行：`.cursor/rules/requirements-first.mdc`
+- Git 提交说明：`.cursor/rules/git-commit.mdc`（简体中文 Conventional Commits）
+- 双端：`.cursor/rules/platform-ios-android.mdc`
+- 手机端 UI：`.cursor/rules/tamagui.mdc`，组件 API 以 `.cursor/skills/tamagui/llms.txt` 为准
+- 质量门禁：`pnpm format`、`pnpm lint:fix`、`pnpm typecheck`（或 `pnpm precommit`）
+- 仅在用户明确要求时执行 `git commit` / `git push`

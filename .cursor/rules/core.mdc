@@ -8,6 +8,8 @@ alwaysApply: true
 - 先读根目录 `AGENTS.md`，再改代码。
 - 用户提出需求或架构调整时：先分析并确认待定项，更新/新增 `docs/` 文档后再开发（见 `requirements-first` 规则）。
 - 包边界：`apps/api` NestJS、`apps/mobile` Expo、`packages/shared` 契约、`packages/tsconfig` TS 基座。
+- 业务与 UI 必须同时兼容 iOS 与 Android（见 `platform-ios-android` 规则）。
+- 手机端 UI 使用 Tamagui；改界面前读 `.cursor/skills/tamagui/SKILL.md`，API 以 `.cursor/skills/tamagui/llms.txt` 为准。
 - 改完必须可通过：`pnpm format`、`pnpm lint:fix`、`pnpm typecheck`。
 - 不新增依赖除非必要；优先既有库与 workspace 包。
 - 最小改动；不擅自扩大范围；不静默吞错。

@@ -1,9 +1,12 @@
 import type { LocationPoint } from '@native-location/shared';
 import { API_PATHS } from '@native-location/shared';
 
-import { API_HTTP_URL, API_WS_URL } from '../config';
+import { API_HTTP_URL, API_WS_URL, apiAuthHeaders } from '../config';
 
-type AckHandler = (message: string) => void;
+export type UploaderEvent =
+  { kind: 'status'; message: string } | { kind: 'payload'; data: unknown };
+
+type EventHandler = (event: UploaderEvent) => void;
 
 /**
  * 实时上报：优先 WebSocket，失败时降级 HTTP。
@@ -15,7 +18,7 @@ export class LocationUploader {
   private readonly maxQueueSize = 100;
   private connecting = false;
 
-  constructor(private readonly onStatus?: AckHandler) {}
+  constructor(private readonly onEvent?: EventHandler) {}
 
   connect() {
     if (
@@ -33,27 +36,35 @@ export class LocationUploader {
 
       socket.onopen = () => {
         this.connecting = false;
-        this.onStatus?.('WebSocket 已连接');
+        this.onEvent?.({ kind: 'status', message: 'WebSocket 已连接' });
         void this.flushQueue();
       };
 
       socket.onmessage = (event) => {
-        this.onStatus?.(`服务端: ${String(event.data)}`);
+        const raw = String(event.data);
+        try {
+          this.onEvent?.({ kind: 'payload', data: JSON.parse(raw) as unknown });
+        } catch {
+          this.onEvent?.({ kind: 'status', message: `服务端: ${raw}` });
+        }
       };
 
       socket.onerror = () => {
         this.connecting = false;
-        this.onStatus?.('WebSocket 错误，将尝试 HTTP 兜底');
+        this.onEvent?.({
+          kind: 'status',
+          message: 'WebSocket 错误，将尝试 HTTP 兜底',
+        });
       };
 
       socket.onclose = () => {
         this.connecting = false;
         this.socket = null;
-        this.onStatus?.('WebSocket 已断开');
+        this.onEvent?.({ kind: 'status', message: 'WebSocket 已断开' });
       };
     } catch {
       this.connecting = false;
-      this.onStatus?.('WebSocket 创建失败');
+      this.onEvent?.({ kind: 'status', message: 'WebSocket 创建失败' });
     }
   }
 
@@ -107,7 +118,7 @@ export class LocationUploader {
   private async sendHttp(point: LocationPoint) {
     const response = await fetch(`${API_HTTP_URL}${API_PATHS.locationBatch}`, {
       method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
+      headers: apiAuthHeaders(),
       body: JSON.stringify({ points: [point] }),
     });
 

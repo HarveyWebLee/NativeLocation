@@ -12,8 +12,7 @@
       "bundleIdentifier": "com.nativelocation.app",
       "infoPlist": {
         "NSLocationWhenInUseUsageDescription": "用于实时上报你的位置，实现定位追踪。",
-        "NSLocationAlwaysAndWhenInUseUsageDescription": "用于在后台持续上报位置（预留能力）。",
-        "UIBackgroundModes": ["location"]
+        "ITSAppUsesNonExemptEncryption": false
       }
     },
     "android": {
@@ -24,13 +23,7 @@
         "backgroundImage": "./assets/android-icon-background.png",
         "monochromeImage": "./assets/android-icon-monochrome.png"
       },
-      "permissions": [
-        "ACCESS_COARSE_LOCATION",
-        "ACCESS_FINE_LOCATION",
-        "ACCESS_BACKGROUND_LOCATION",
-        "FOREGROUND_SERVICE",
-        "FOREGROUND_SERVICE_LOCATION"
-      ],
+      "permissions": ["ACCESS_COARSE_LOCATION", "ACCESS_FINE_LOCATION"],
       "predictiveBackGestureEnabled": false
     },
     "web": {
@@ -40,10 +33,9 @@
       [
         "expo-location",
         {
-          "locationAlwaysAndWhenInUsePermission": "允许 NativeLocation 在后台获取位置以便持续上报。",
           "locationWhenInUsePermission": "允许 NativeLocation 在使用期间获取位置。",
-          "isAndroidBackgroundLocationEnabled": true,
-          "isIosBackgroundLocationEnabled": true
+          "isAndroidBackgroundLocationEnabled": false,
+          "isIosBackgroundLocationEnabled": false
         }
       ]
     ]
