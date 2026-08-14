@@ -4,7 +4,7 @@ services:
     container_name: native-location-postgres
     restart: unless-stopped
     ports:
-      - '16875:5432'
+      - '${POSTGRES_PORT:-16875}:5432'
     environment:
       POSTGRES_USER: ${POSTGRES_USER:-nativelocation}
       POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-nativelocation}

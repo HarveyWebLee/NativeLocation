@@ -27,7 +27,11 @@ services:
       PORT: 18156
       API_KEY: ${API_KEY}
       CORS_ORIGIN: ${CORS_ORIGIN:-}
-      DATABASE_URL: postgresql://${POSTGRES_USER}:${POSTGRES_PASSWORD}@postgres:5432/${POSTGRES_DB}?schema=public
+      POSTGRES_USER: ${POSTGRES_USER}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD}
+      POSTGRES_DB: ${POSTGRES_DB}
+      POSTGRES_HOST: postgres
+      POSTGRES_PORT: '5432'
     ports:
       - '127.0.0.1:18156:18156'
 

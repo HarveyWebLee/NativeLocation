@@ -36,7 +36,7 @@ pnpm dev:mobile
 ```
 
 > Docker 装在 **WSL Ubuntu** 时，用 `pnpm db:up` / `pnpm db:down`（脚本会经 WSL 调用 `docker compose`）。  
-> 容器端口映射到 Windows/`localhost` 的 **16875**，NestJS 仍用 `DATABASE_URL=...@localhost:16875/...`。
+> 容器端口映射到 Windows/`localhost` 的 **16875**（`.env` 里 `POSTGRES_PORT`）。NestJS / Prisma 用 `POSTGRES_HOST=127.0.0.1` 与同一端口拼接连接串，不要再手写 `DATABASE_URL`。
 
 ## 定位链路
 
@@ -53,10 +53,11 @@ pnpm dev:mobile
 
 ## 常用命令
 
-| 命令              | 说明                                 |
-| ----------------- | ------------------------------------ |
-| `pnpm db:up`      | 启动 PostgreSQL（宿主机 16875）      |
-| `pnpm dev:api`    | 启动 NestJS                          |
-| `pnpm dev:mobile` | 启动 Expo（扫码真机 + 自动打开 Web） |
-| `pnpm db:studio`  | Prisma Studio                        |
-| `pnpm typecheck`  | 全仓类型检查                         |
+| 命令              | 说明                                                              |
+| ----------------- | ----------------------------------------------------------------- |
+| `pnpm db:up`      | 启动 PostgreSQL（宿主机 16875）                                   |
+| `pnpm dev:api`    | 启动 NestJS                                                       |
+| `pnpm dev:mobile` | 启动 Expo（扫码真机 + 自动打开 Web）                              |
+| `pnpm db:studio`  | Prisma Studio                                                     |
+| `pnpm typecheck`  | 全仓类型检查                                                      |
+| `pnpm clean`      | 删除仓库内全部 `node_modules`（占用时先结束 API / Prisma 等进程） |

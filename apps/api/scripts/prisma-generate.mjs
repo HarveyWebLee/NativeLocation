@@ -1,9 +1,13 @@
 import { spawnSync } from 'node:child_process';
 import { createHash } from 'node:crypto';
 import { existsSync, readFileSync, writeFileSync } from 'node:fs';
+import { createRequire } from 'node:module';
 import path from 'node:path';
 import process from 'node:process';
 import { fileURLToPath } from 'node:url';
+
+const require = createRequire(import.meta.url);
+const { applyDatabaseUrl } = require('./apply-database-url.cjs');
 
 const apiRoot = path.resolve(
   path.dirname(fileURLToPath(import.meta.url)),
@@ -51,6 +55,8 @@ const envPath = path.join(repoRoot, '.env');
 if (existsSync(envPath) && typeof process.loadEnvFile === 'function') {
   process.loadEnvFile(envPath);
 }
+
+applyDatabaseUrl(process.env, { optional: true });
 
 if (clientExists() && storedHash() === hash) {
   console.log('Prisma Client 已是当前 schema，跳过 generate');

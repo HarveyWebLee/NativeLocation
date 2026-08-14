@@ -22,15 +22,16 @@ MVP 使用明文 HTTP/WS、开放 CORS、无鉴权、仅 Expo Go。生产需在�
 7. **审核**：生产包关闭未使用的后台定位声明（`UIBackgroundModes` / `ACCESS_BACKGROUND_LOCATION`）。
 8. **密钥**：不入库；`.env.production` gitignore。
 9. **本地只维护仓库根目录 `.env`。** Prisma / Nest / Expo 启动时加载该文件；已存在的环境变量不覆盖。生产 API 由 Compose 注入 `.env.production`，镜像不包含 `.env`；独立包由 EAS 注入 `EXPO_PUBLIC_*`，不读开发机 `.env`。
+10. **数据库连接只配 `POSTGRES_*`。** 不在环境文件写 `DATABASE_URL`。Nest 与 Prisma CLI 在进程内拼接；生产 Compose 给 API 容器注入 `POSTGRES_HOST=postgres`、`POSTGRES_PORT=5432`。密码中的 `@` 等由代码做 URL 编码。
 
 ## 影响面
 
-| 面     | 影响                                               |
-| ------ | -------------------------------------------------- |
-| api    | Guard、启动校验、Docker、CORS                      |
-| mobile | 请求带头、WS 带 query、eas.json、app.json 权限收敛 |
-| shared | `API_KEY_HEADER` 常量                              |
-| 数据   | 无 schema 变更；部署用 migrate deploy              |
+| 面     | 影响                                                   |
+| ------ | ------------------------------------------------------ |
+| api    | Guard、启动校验、Docker、CORS；`POSTGRES_*` 拼接库连接 |
+| mobile | 请求带头、WS 带 query、eas.json、app.json 权限收敛     |
+| shared | `API_KEY_HEADER` 常量                                  |
+| 数据   | 无 schema 变更；部署用 migrate deploy                  |
 
 ## 备选方案
 

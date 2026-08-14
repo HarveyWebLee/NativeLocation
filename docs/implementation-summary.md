@@ -120,8 +120,8 @@ pnpm db:down
 pnpm db:logs
 ```
 
-- 容器端口：`16875:5432`
-- Windows 侧 NestJS / Prisma 连接：`127.0.0.1:16875`（避免 `localhost` IPv6 解析问题）
+- 容器端口：`${POSTGRES_PORT:-16875}:5432`
+- Windows 侧 NestJS / Prisma 连接：`POSTGRES_HOST=127.0.0.1` 与同一 `POSTGRES_PORT`（避免 `localhost` IPv6 解析问题）
 - `pnpm dev:api` 会锁住 `query_engine-windows.dll.node`。`typecheck` / `precommit` 触发的 `prisma generate` 在 schema 未变时会跳过，不必先停 API；**改了 schema 后仍需停掉 API 再 generate**（引擎二进制必须替换，且进程里的 Client 也已过期）。
 
 ### 5.2 环境变量
@@ -135,6 +135,8 @@ pnpm db:logs
 | EAS 独立包   | Expo 控制台的 `EXPO_PUBLIC_*`，构建时打进包内                             |
 
 加载时不覆盖已存在的 `process.env`，因此生产注入始终优先。
+
+数据库相关只配置 `POSTGRES_USER` / `POSTGRES_PASSWORD` / `POSTGRES_DB` / `POSTGRES_HOST` / `POSTGRES_PORT`。不要写 `DATABASE_URL`；Nest 启动与 Prisma CLI 会在进程内拼接，供 Prisma `env("DATABASE_URL")` 读取。生产 API 容器由 Compose 注入 `POSTGRES_HOST=postgres`、`POSTGRES_PORT=5432`（连 Docker 网络内的库，不是宿主机映射端口）。
 
 ## 6. 本地联调流程
 

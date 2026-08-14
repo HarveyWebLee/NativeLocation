@@ -24,6 +24,7 @@
     "db:migrate": "pnpm --filter @native-location/api prisma:migrate",
     "db:migrate:deploy": "pnpm --filter @native-location/api prisma:migrate:deploy",
     "db:studio": "pnpm --filter @native-location/api prisma:studio",
+    "clean": "node scripts/clean-node-modules.mjs",
     "prepare": "husky"
   },
   "devDependencies": {

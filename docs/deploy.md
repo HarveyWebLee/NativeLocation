@@ -1,4 +1,4 @@
-#  生产构建与发布手册
+# 生产构建与发布手册
 
 本文是运维与发版的逐步操作说明。决策背景见 [architecture/production-release.md](./architecture/production-release.md)，需求范围见 [requirements/production-release.md](./requirements/production-release.md)。
 
@@ -8,27 +8,23 @@
 
 ## 1. 文档怎么用地方
 
-
-| 读者       | 读哪些章节         |
-| -------- | ------------- |
+| 读者       | 读哪些章节        |
+| ---------- | ----------------- |
 | 运维 / VPS | 第 2–6、11、13 节 |
-| 客户端发版    | 第 2、7–11、13 节 |
-| 商店上架     | 第 10–11 节     |
-
+| 客户端发版 | 第 2、7–11、13 节 |
+| 商店上架   | 第 10–11 节       |
 
 仓库内相关文件：
 
-
-| 路径                             | 用途                                         |
-| ------------------------------ | ------------------------------------------ |
-| `.env.production.example`      | 复制为根目录 `.env.production`（已忽略）              |
-| `Dockerfile`                   | 生产 API 镜像（含 migrate + 启动）                  |
-| `docker-compose.prod.yml`      | Postgres + API；API 只绑 `127.0.0.1:18156`    |
-| `deploy/nginx.conf.example`    | 宿主机 Nginx：TLS 与反向代理                        |
+| 路径                           | 用途                                           |
+| ------------------------------ | ---------------------------------------------- |
+| `.env.production.example`      | 复制为根目录 `.env.production`（已忽略）       |
+| `Dockerfile`                   | 生产 API 镜像（含 migrate + 启动）             |
+| `docker-compose.prod.yml`      | Postgres + API；API 只绑 `127.0.0.1:18156`     |
+| `deploy/nginx.conf.example`    | 宿主机 Nginx：TLS 与反向代理                   |
 | `apps/mobile/eas.json`         | EAS 构建档：development / preview / production |
-| `apps/mobile/app.json`         | 包名、版本、定位权限文案                               |
-| `docs/legal/privacy-policy.md` | 隐私政策草稿，须托管为 HTTPS 再填商店                     |
-
+| `apps/mobile/app.json`         | 包名、版本、定位权限文案                       |
+| `docs/legal/privacy-policy.md` | 隐私政策草稿，须托管为 HTTPS 再填商店          |
 
 本期**不做**：用户登录、多实例、Redis、后台持续定位、代注册商店账号、代申请域名证书。
 
@@ -49,15 +45,13 @@
 
 当前 `apps/mobile/app.json`：
 
-
-| 项                      | 值                        |
+| 项                     | 值                       |
 | ---------------------- | ------------------------ |
-| 显示名                    | `NativeLocation`         |
+| 显示名                 | `NativeLocation`         |
 | Expo slug              | `native-location`        |
 | iOS `bundleIdentifier` | `com.nativelocation.app` |
 | Android `package`      | `com.nativelocation.app` |
 | `version`              | `1.0.0`                  |
-
 
 商店里包名全局唯一。若被占用，先改 `app.json` 再 `eas init` / 构建。每次商店更新至少提高 `expo.version`；Android 还需提高 `android.versionCode`，iOS 提高 `ios.buildNumber`（首次可设为 `1`）。`eas.json` 使用 `"appVersionSource": "local"`，版本以仓库 `app.json` 为准，不由 EAS 远程自增。
 
@@ -149,16 +143,14 @@ chmod 600 .env.production
 
 编辑 `.env.production`：
 
-
-| 变量                  | 说明                                                                |
-| ------------------- | ----------------------------------------------------------------- |
-| `NODE_ENV`          | 必须为 `production`                                                  |
-| `POSTGRES_USER`     | 默认 `nativelocation`                                               |
-| `POSTGRES_PASSWORD` | 强密码。若含 `@` `#` `%` 等，写入 `DATABASE_URL` 时需 URL 编码（Compose 会拼进 URL） |
-| `POSTGRES_DB`       | 默认 `nativelocation`                                               |
-| `API_KEY`           | 与后续 EAS 的 `EXPO_PUBLIC_API_KEY` 相同                                |
-| `CORS_ORIGIN`       | 生产可留空                                                             |
-
+| 变量                | 说明                                                                     |
+| ------------------- | ------------------------------------------------------------------------ |
+| `NODE_ENV`          | 必须为 `production`                                                      |
+| `POSTGRES_USER`     | 默认 `nativelocation`                                                    |
+| `POSTGRES_PASSWORD` | 强密码。含 `@` `#` `%` 等时由 API 进程 URL 编码，不必再写 `DATABASE_URL` |
+| `POSTGRES_DB`       | 默认 `nativelocation`                                                    |
+| `API_KEY`           | 与后续 EAS 的 `EXPO_PUBLIC_API_KEY` 相同                                 |
+| `CORS_ORIGIN`       | 生产可留空                                                               |
 
 不要把真实 `.env.production` 拷回开发机仓库或发到聊天工具。
 
@@ -184,13 +176,11 @@ curl -sS http://127.0.0.1:18156/health
 
 本服务**不占用 80/443**。Nginx 监听：
 
-
-| 端口      | 协议        | 用途                                  |
-| ------- | --------- | ----------------------------------- |
-| `18200` | HTTP      | 301 跳转到 `https://主机:18201`          |
+| 端口    | 协议      | 用途                                         |
+| ------- | --------- | -------------------------------------------- |
+| `18200` | HTTP      | 301 跳转到 `https://主机:18201`              |
 | `18201` | HTTPS/WSS | 对外 API（TLS 终止后转到 `127.0.0.1:18156`） |
-| `18156` | HTTP      | 仅本机 Nest，不对公网                       |
-
+| `18156` | HTTP      | 仅本机 Nest，不对公网                        |
 
 Let's Encrypt 的 HTTP-01 需要 80，本机用不了 80，因此证书用 **DNS-01**（在域名解析里加 TXT，或用 Cloudflare 等插件）。
 
@@ -278,13 +268,11 @@ docker compose -f docker-compose.prod.yml --env-file .env.production exec postgr
 
 独立包**不会**读 VPS 上的 `.env.production`。必须在 [Expo 环境变量](https://docs.expo.dev/eas/environment-variables/)（或 `eas.json` 的 `env`，勿提交真实 Key）为对应 Build Profile 配置：
 
-
-| 变量                         | 生产示例                                             | 说明                      |
-| -------------------------- | ------------------------------------------------ | ----------------------- |
-| `EXPO_PUBLIC_API_HTTP_URL` | `https://api.example.com:18201`                  | 必须带 `:18201`，不要末尾斜杠     |
+| 变量                       | 生产示例                                         | 说明                                  |
+| -------------------------- | ------------------------------------------------ | ------------------------------------- |
+| `EXPO_PUBLIC_API_HTTP_URL` | `https://api.example.com:18201`                  | 必须带 `:18201`，不要末尾斜杠         |
 | `EXPO_PUBLIC_API_WS_URL`   | `wss://api.example.com:18201/v1/location/stream` | 不要在此拼 `apiKey`，客户端会自动附加 |
-| `EXPO_PUBLIC_API_KEY`      | 与服务器 `API_KEY` 相同                                | 打进包内                    |
-
+| `EXPO_PUBLIC_API_KEY`      | 与服务器 `API_KEY` 相同                          | 打进包内                              |
 
 未设置 `EXPO_PUBLIC_API_HTTP_URL` 时，App 会回落到开发用 `http://<host>:18156`，**生产包不可依赖该回落**。
 
@@ -309,14 +297,12 @@ npx eas-cli init
 
 查看构建档：`apps/mobile/eas.json`
 
-
-| Profile             | 用途                  | 产物要点                           |
-| ------------------- | ------------------- | ------------------------------ |
-| `development`       | 开发客户端               | `developmentClient: true`，内部分发 |
-| `preview`           | 内测                  | Android 为 **APK**，可侧载          |
-| `production`        | 商店                  | Android 默认 **AAB**；iOS 为商店 IPA |
-| `submit.production` | `eas submit` 使用的提交档 | 需已关联商店账号                       |
-
+| Profile             | 用途                      | 产物要点                             |
+| ------------------- | ------------------------- | ------------------------------------ |
+| `development`       | 开发客户端                | `developmentClient: true`，内部分发  |
+| `preview`           | 内测                      | Android 为 **APK**，可侧载           |
+| `production`        | 商店                      | Android 默认 **AAB**；iOS 为商店 IPA |
+| `submit.production` | `eas submit` 使用的提交档 | 需已关联商店账号                     |
 
 CLI 要求 `eas-cli` ≥ 16。
 
@@ -407,15 +393,13 @@ npx eas-cli submit --profile production --platform ios
 
 ### 10.4 双端验收（独立包，禁止只测 Web）
 
-
-| 项   | iOS                     | Android                  |
-| --- | ----------------------- | ------------------------ |
-| 安装  | TestFlight 或 EAS 内测     | preview APK 或 Play 内部测试轨 |
-| 权限  | 使用期间定位弹窗；设置中可关闭         | 精确/大致位置；设置中可关闭           |
-| 定位  | 前台采集；坐标为 WGS84          | 同左                       |
-| 上报  | WSS 通；断网后恢复应走 HTTP 批量补传 | 同左                       |
-| 安全区 | 底部主按钮不被 Home 条挡住        | 返回键不导致白屏退出未保存状态（当前无多页）   |
-
+| 项     | iOS                                  | Android                                      |
+| ------ | ------------------------------------ | -------------------------------------------- |
+| 安装   | TestFlight 或 EAS 内测               | preview APK 或 Play 内部测试轨               |
+| 权限   | 使用期间定位弹窗；设置中可关闭       | 精确/大致位置；设置中可关闭                  |
+| 定位   | 前台采集；坐标为 WGS84               | 同左                                         |
+| 上报   | WSS 通；断网后恢复应走 HTTP 批量补传 | 同左                                         |
+| 安全区 | 底部主按钮不被 Home 条挡住           | 返回键不导致白屏退出未保存状态（当前无多页） |
 
 ---
 
@@ -456,34 +440,30 @@ npx eas-cli submit --profile production --platform ios
 
 ## 13. 故障排查
 
-
-| 现象                              | 处理                                                            |
-| ------------------------------- | ------------------------------------------------------------- |
-| api 容器立刻退出                      | 查 `API_KEY` 是否在 `--env-file` 中；`NODE_ENV` 是否为 production      |
-| migrate 失败                      | 查 `POSTGRES_PASSWORD` 特殊字符；`docker compose ... logs postgres` |
-| `/health` 通但 App 401            | 客户端 `EXPO_PUBLIC_API_KEY` 与服务器不一致，或该次构建未注入变量                  |
-| App 仍请求 `http://10.0.2.2:18156` | 生产构建未设置 `EXPO_PUBLIC_API_HTTP_URL`，打了开发回落                     |
-| WSS 连上立刻断开                      | 查 Nginx `Upgrade`；查 query 是否为 `apiKey`（不是 `X-Api-Key`）        |
-| 仅 HTTP 通、WSS 失败                 | `proxy_read_timeout` 过短或漏了 Connection upgrade                 |
-| iOS 构建缺证书                       | `eas credentials` 按提示生成；Bundle ID 必须与开发者后台一致                  |
-| Play 拒包 versionCode             | 提高 `android.versionCode` 后重打 production                       |
-| 定位权限被拒后无数据                      | 符合设计；引导用户到系统设置。生产包不能在后台持续采点                                   |
-| 18200/18201 连不上                 | 查防火墙与 Nginx `listen`；证书须 DNS-01；客户端 URL 必须带 `:18201`          |
-
+| 现象                               | 处理                                                                                         |
+| ---------------------------------- | -------------------------------------------------------------------------------------------- |
+| api 容器立刻退出                   | 查 `API_KEY` 是否在 `--env-file` 中；`NODE_ENV` 是否为 production                            |
+| migrate 失败                       | 查 `POSTGRES_USER` / `POSTGRES_PASSWORD` / `POSTGRES_DB`；`docker compose ... logs postgres` |
+| `/health` 通但 App 401             | 客户端 `EXPO_PUBLIC_API_KEY` 与服务器不一致，或该次构建未注入变量                            |
+| App 仍请求 `http://10.0.2.2:18156` | 生产构建未设置 `EXPO_PUBLIC_API_HTTP_URL`，打了开发回落                                      |
+| WSS 连上立刻断开                   | 查 Nginx `Upgrade`；查 query 是否为 `apiKey`（不是 `X-Api-Key`）                             |
+| 仅 HTTP 通、WSS 失败               | `proxy_read_timeout` 过短或漏了 Connection upgrade                                           |
+| iOS 构建缺证书                     | `eas credentials` 按提示生成；Bundle ID 必须与开发者后台一致                                 |
+| Play 拒包 versionCode              | 提高 `android.versionCode` 后重打 production                                                 |
+| 定位权限被拒后无数据               | 符合设计；引导用户到系统设置。生产包不能在后台持续采点                                       |
+| 18200/18201 连不上                 | 查防火墙与 Nginx `listen`；证书须 DNS-01；客户端 URL 必须带 `:18201`                         |
 
 ---
 
 ## 14. 与开发环境的区别（避免混用）
 
-
-| 项       | 本地开发                           | 生产                                    |
-| ------- | ------------------------------ | ------------------------------------- |
-| Compose | `docker-compose.yml`，库端口 16875 | `docker-compose.prod.yml`，库不映射公网      |
-| API 地址  | `http://局域网IP:18156`           | `https://你的域名:18201`                  |
-| WS      | `ws://.../v1/location/stream`  | `wss://你的域名:18201/v1/location/stream` |
-| API Key | 可不设（放行）                        | 必设，否则拒启                               |
-| 客户端     | Expo Go / `pnpm dev:mobile`    | EAS 独立包                               |
-| 环境变量    | 仅根目录 `.env`                    | Compose `.env.production`；EAS 控制台     |
-
+| 项       | 本地开发                           | 生产                                      |
+| -------- | ---------------------------------- | ----------------------------------------- |
+| Compose  | `docker-compose.yml`，库端口 16875 | `docker-compose.prod.yml`，库不映射公网   |
+| API 地址 | `http://局域网IP:18156`            | `https://你的域名:18201`                  |
+| WS       | `ws://.../v1/location/stream`      | `wss://你的域名:18201/v1/location/stream` |
+| API Key  | 可不设（放行）                     | 必设，否则拒启                            |
+| 客户端   | Expo Go / `pnpm dev:mobile`        | EAS 独立包                                |
+| 环境变量 | 仅根目录 `.env`                    | Compose `.env.production`；EAS 控制台     |
 
 开发机不要对生产库跑 `pnpm db:migrate`（那是 `migrate dev`）。生产只用镜像内的 `prisma migrate deploy`。

@@ -71,6 +71,15 @@ export default tseslint.config(
     },
   },
   {
+    files: ['**/*.cjs'],
+    languageOptions: {
+      globals: {
+        ...globals.node,
+      },
+      sourceType: 'commonjs',
+    },
+  },
+  {
     files: [
       'apps/mobile/metro.config.js',
       'apps/mobile/**/*.config.js',

@@ -16,7 +16,7 @@
 
 1. **客户端用 Expo SDK 54，不用 Electron、不用裸 React Native CLI。** Electron 无法作为正式 iOS/Android 端；Expo 便于权限与真机调试，并与当前 Expo Go 的 SDK 对齐。
 2. **上报主路径 WebSocket，HTTP 批量兜底。** 前台低延迟；断线可补传，不把实时通道做成唯一路径。
-3. **Prisma + PostgreSQL。** 定位时序点足够用；后续可加 PostGIS。连接使用 `127.0.0.1` 与宿主机端口 **16875**，避免 Windows 上 `localhost` 走 IPv6。
+3. **Prisma + PostgreSQL。** 定位时序点足够用；后续可加 PostGIS。连接使用 `POSTGRES_HOST=127.0.0.1` 与 `POSTGRES_PORT`（默认 **16875**），避免 Windows 上 `localhost` 走 IPv6。进程内由 `POSTGRES_*` 拼接 `DATABASE_URL`，环境文件不重复配置连接串。
 4. **MVP 不上 Redis。** 单实例足够；限流与多实例 PubSub 留到后续。
 5. **契约集中在 `packages/shared`（Zod）。** HTTP 与 WS 共用同一套 LocationPoint / Device 校验，避免前后端漂移。
 6. **`pnpm dev:mobile` 直连 Expo。** 不经 Turbo 包一层，避免交互终端被吞掉导致无二维码。

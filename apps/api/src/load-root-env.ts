@@ -1,6 +1,8 @@
 import { existsSync } from 'node:fs';
 import { resolve } from 'node:path';
 
+import { applyDatabaseUrl } from '../scripts/apply-database-url.cjs';
+
 function findRepoRoot(startDir: string): string | undefined {
   let dir = startDir;
   for (let i = 0; i < 8; i += 1) {
@@ -33,3 +35,4 @@ export function loadRootEnv(): void {
 }
 
 loadRootEnv();
+applyDatabaseUrl();
