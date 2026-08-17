@@ -35,5 +35,17 @@ services:
     ports:
       - '127.0.0.1:18156:18156'
 
+  nginx:
+    image: nginx:1.27-alpine
+    restart: unless-stopped
+    depends_on:
+      - api
+    ports:
+      - '18200:18200'
+      - '18201:18201'
+    volumes:
+      - ./deploy/nginx.conf:/etc/nginx/conf.d/default.conf:ro
+      - ./deploy/letsencrypt:/etc/letsencrypt:ro
+
 volumes:
   postgres_data:

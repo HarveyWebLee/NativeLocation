@@ -13,7 +13,7 @@ MVP 使用明文 HTTP/WS、开放 CORS、无鉴权、仅 Expo Go。生产需在�
 
 ## 决策
 
-1. **TLS 在 Nginx（或同类反向代理）终止**，Nest 仍监听容器内 HTTP。对外 **不使用 80/443**：HTTP 为 **18200**，HTTPS/WSS 为 **18201**；客户端 URL 须带 `:18201`。证书用 DNS-01。
+1. **TLS 在 Compose 内的 Nginx 容器终止**，Nest 仍监听容器内 HTTP。对外 **不使用 80/443**：HTTP 为 **18200**，HTTPS/WSS 为 **18201**；客户端 URL 须带 `:18201`。证书用 DNS-01。`deploy/nginx.conf` 与 `deploy/letsencrypt`（Let's Encrypt 目录树）以**仓库相对路径只读挂载**进 Nginx 容器（容器内证书路径仍为 `/etc/letsencrypt`），与 API 镜像解耦；续期后 `nginx -s reload`，不必重建 API。Certbot 官方镜像把证书写到 `deploy/letsencrypt`，工作目录为 `deploy/certbot-work`。
 2. **静态 API Key**：环境变量 `API_KEY`；HTTP 头 `X-Api-Key`；WS 连接 `...?apiKey=`。开发未设 Key 时放行；`NODE_ENV=production` 且无 Key 则进程退出。
 3. **健康检查免鉴权**，供反向代理与探活。
 4. **CORS**：生产按 `CORS_ORIGIN` 白名单（原生 App 不走 CORS）；未配置则生产关闭浏览器跨域。
@@ -26,20 +26,21 @@ MVP 使用明文 HTTP/WS、开放 CORS、无鉴权、仅 Expo Go。生产需在�
 
 ## 影响面
 
-| 面     | 影响                                                   |
-| ------ | ------------------------------------------------------ |
-| api    | Guard、启动校验、Docker、CORS；`POSTGRES_*` 拼接库连接 |
-| mobile | 请求带头、WS 带 query、eas.json、app.json 权限收敛     |
-| shared | `API_KEY_HEADER` 常量                                  |
-| 数据   | 无 schema 变更；部署用 migrate deploy                  |
+| 面     | 影响                                                                       |
+| ------ | -------------------------------------------------------------------------- |
+| api    | Guard、启动校验、Docker Compose（含 Nginx）、CORS；`POSTGRES_*` 拼接库连接 |
+| mobile | 请求带头、WS 带 query、eas.json、app.json 权限收敛                         |
+| shared | `API_KEY_HEADER` 常量                                                      |
+| 数据   | 无 schema 变更；部署用 migrate deploy                                      |
 
 ## 备选方案
 
-| 决策点 | 未采用        | 原因                     |
-| ------ | ------------- | ------------------------ |
-| 鉴权   | 用户登录      | 超出本期                 |
-| TLS    | Node 直接证书 | 与运维习惯不符，续期麻烦 |
-| 构建   | 仅本地 Gradle | 双端统一用 EAS           |
+| 决策点   | 未采用                     | 原因                                                                                              |
+| -------- | -------------------------- | ------------------------------------------------------------------------------------------------- |
+| 鉴权     | 用户登录                   | 超出本期                                                                                          |
+| TLS      | Nest 进程内直接挂证书      | 续期与运维习惯差；反向代理统一终止 TLS                                                            |
+| TLS 入口 | 宿主机安装 Nginx / Certbot | 依赖发行版源（如 CentOS 8 yum 已失效）；证书用卷挂载即可与 API 解耦，故 Nginx 与 Certbot 均走容器 |
+| 构建     | 仅本地 Gradle              | 双端统一用 EAS                                                                                    |
 
 ## 范围
 

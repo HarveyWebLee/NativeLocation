@@ -16,15 +16,16 @@
 
 仓库内相关文件：
 
-| 路径                           | 用途                                           |
-| ------------------------------ | ---------------------------------------------- |
-| `.env.production.example`      | 复制为根目录 `.env.production`（已忽略）       |
-| `Dockerfile`                   | 生产 API 镜像（含 migrate + 启动）             |
-| `docker-compose.prod.yml`      | Postgres + API；API 只绑 `127.0.0.1:18156`     |
-| `deploy/nginx.conf.example`    | 宿主机 Nginx：TLS 与反向代理                   |
-| `apps/mobile/eas.json`         | EAS 构建档：development / preview / production |
-| `apps/mobile/app.json`         | 包名、版本、定位权限文案                       |
-| `docs/legal/privacy-policy.md` | 隐私政策草稿，须托管为 HTTPS 再填商店          |
+| 路径                           | 用途                                               |
+| ------------------------------ | -------------------------------------------------- |
+| `.env.production.example`      | 复制为根目录 `.env.production`（已忽略）           |
+| `Dockerfile`                   | 生产 API 镜像（含 migrate + 启动）                 |
+| `docker-compose.prod.yml`      | Postgres + API + Nginx；API 只绑 `127.0.0.1:18156` |
+| `deploy/nginx.conf.example`    | 复制为 `deploy/nginx.conf`，挂进 Nginx 容器        |
+| `deploy/letsencrypt/`          | Certbot 写入的证书目录（gitignore），挂进 Nginx    |
+| `apps/mobile/eas.json`         | EAS 构建档：development / preview / production     |
+| `apps/mobile/app.json`         | 包名、版本、定位权限文案                           |
+| `docs/legal/privacy-policy.md` | 隐私政策草稿，须托管为 HTTPS 再填商店              |
 
 本期**不做**：用户登录、多实例、Redis、后台持续定位、代注册商店账号、代申请域名证书。
 
@@ -34,7 +35,7 @@
 
 ### 2.1 账号与材料
 
-- [ ] 一台可公网访问的 Linux VPS（建议 2 vCPU / 2 GB 内存起；需 Docker；防火墙放行 **18200、18201**，不使用 80/443）
+- [ ] 一台可公网访问的 Linux VPS（建议 2 vCPU / 2 GB 内存起；需 Docker；防火墙放行 **18200、18201**，不使用 80/443）。**推荐 Ubuntu 22.04/24.04 LTS**，或 Rocky Linux / AlmaLinux 8/9。CentOS Linux 8 已停更，但本栈 Nginx/Certbot 走容器，**不必**为装系统 nginx 去修 yum 源。
 - [ ] 已解析到该 VPS 的 API 域名（下文以 `api.example.com` 为例）
 - [ ] [Expo](https://expo.dev) 账号（EAS Build）
 - [ ] Apple Developer Program（上架 iOS）
@@ -75,16 +76,17 @@ openssl rand -hex 32
 真机 App (HTTPS / WSS，端口 18201)
         │
         ▼
-  Nginx :18201（TLS 终止）
+  Nginx 容器 :18201（TLS 终止；证书卷来自宿主机）
         │  Upgrade: websocket
         ▼
-  127.0.0.1:18156  NestJS 容器
+  Docker 网内 api:18156  NestJS
         │
         ▼
   Docker 内网 Postgres:5432（不映射公网）
 ```
 
 - Nest 在容器内仍是 HTTP。对外反向代理：**18200** = HTTP（301 到 HTTPS），**18201** = HTTPS/WSS。不使用 80/443。
+- Nginx 与 API 同属 Compose：`proxy_pass http://api:18156`。证书目录只读挂载，续期不重建 API 镜像。
 - 客户端地址必须带端口，例如 `https://api.example.com:18201`、`wss://api.example.com:18201/v1/location/stream`。
 - `GET /health` **不需要** API Key（探活、证书、Nginx 检查）。
 - 其余 HTTP 需要请求头 `X-Api-Key`（契约常量 `API_KEY_HEADER` = `x-api-key`）。
@@ -112,25 +114,61 @@ pnpm typecheck
 
 ## 5. 部署生产 API（自有 VPS）
 
-以下在 **VPS** 上操作。假设系统为 Ubuntu，已能 SSH。
+以下在 **VPS** 上操作，已能 SSH。本栈 **不在宿主机安装 Nginx**。TLS 入口是 Compose 里的 `nginx` 服务；`deploy/nginx.conf` 与 `deploy/letsencrypt` 只读挂进容器。不要开放 80/443 给本服务。**不要**把 `5432` 或 `18156` 暴露到 `0.0.0.0`。Compose 已把 API 映射为 `127.0.0.1:18156:18156`（仅本机探活）。
 
-### 5.1 安装 Docker
+已是 `root` 时可省略 `sudo`。Docker 已安装则跳过 5.1.1，只确认版本。
 
-按 [Docker 官方文档](https://docs.docker.com/engine/install/ubuntu/) 安装 Engine 与 Compose 插件，确认：
+### 5.1 安装 Docker 与防火墙
+
+#### 5.1.1 Docker
+
+按发行版安装 Engine 与 Compose 插件：
+
+- Ubuntu：[Install Docker Engine on Ubuntu](https://docs.docker.com/engine/install/ubuntu/)
+- Debian：[Debian](https://docs.docker.com/engine/install/debian/)
+- RHEL：[RHEL](https://docs.docker.com/engine/install/rhel/)
+- CentOS / 兼容发行版：[CentOS](https://docs.docker.com/engine/install/centos/)
+- Fedora：[Fedora](https://docs.docker.com/engine/install/fedora/)
+
+确认：
 
 ```bash
 docker --version
 docker compose version
 ```
 
-安装 Nginx 与 Certbot（证书挂在**宿主机** Nginx，不进 Compose）：
+若 `docker compose` 不存在，再试旧二进制 `docker-compose`（带横杠）。二者选一个，后续命令保持一致。
+
+#### 5.1.2 防火墙
+
+不要用 `apt-get` / `yum` 装系统 nginx。放行 **18200、18201**，并保留 SSH。
+
+Ubuntu / Debian（若启用了 ufw）：
 
 ```bash
-sudo apt-get update
-sudo apt-get install -y nginx certbot python3-certbot-nginx
+sudo ufw allow OpenSSH
+sudo ufw allow 18200/tcp
+sudo ufw allow 18201/tcp
+sudo ufw enable
+sudo ufw status
 ```
 
-防火墙开放 SSH、**18200**、**18201**。不要开放 80/443 给本服务。**不要**把 `5432` 或 `18156` 暴露到 `0.0.0.0`。Compose 已把 API 映射为 `127.0.0.1:18156:18156`。
+Rocky / AlmaLinux / RHEL / CentOS（firewalld）：
+
+```bash
+sudo firewall-cmd --permanent --add-port=18200/tcp
+sudo firewall-cmd --permanent --add-port=18201/tcp
+sudo firewall-cmd --reload
+sudo firewall-cmd --list-ports
+```
+
+RHEL 系若 Nginx 容器读证书报 Permission denied（SELinux），给证书目录加上容器可读标签后再启动：
+
+```bash
+sudo chcon -Rt container_file_t deploy/letsencrypt
+```
+
+同一台机器上**不要**再跑一份占用 18200/18201 的宿主机 Nginx。
 
 ### 5.2 放置代码与环境变量
 
@@ -156,8 +194,10 @@ chmod 600 .env.production
 
 ### 5.3 启动 Postgres 与 API
 
+证书尚未就绪时，只起库和 API（不要起 `nginx`，否则会因缺 `deploy/nginx.conf` 或证书而失败）：
+
 ```bash
-docker compose -f docker-compose.prod.yml --env-file .env.production up -d --build
+docker compose -f docker-compose.prod.yml --env-file .env.production up -d --build postgres api
 docker compose -f docker-compose.prod.yml --env-file .env.production ps
 docker compose -f docker-compose.prod.yml --env-file .env.production logs -f api
 ```
@@ -172,31 +212,47 @@ curl -sS http://127.0.0.1:18156/health
 
 期望 JSON 健康响应。若 api 容器反复退出，查日志是否为「生产环境必须设置 `API_KEY`」或数据库连不上。
 
-### 5.4 Nginx + Let's Encrypt（18200 / 18201）
+### 5.4 Nginx 容器 + Let's Encrypt（18200 / 18201）
 
-本服务**不占用 80/443**。Nginx 监听：
+本服务**不占用 80/443**。Nginx **容器**监听：
 
-| 端口    | 协议      | 用途                                         |
-| ------- | --------- | -------------------------------------------- |
-| `18200` | HTTP      | 301 跳转到 `https://主机:18201`              |
-| `18201` | HTTPS/WSS | 对外 API（TLS 终止后转到 `127.0.0.1:18156`） |
-| `18156` | HTTP      | 仅本机 Nest，不对公网                        |
+| 端口    | 协议      | 用途                                                |
+| ------- | --------- | --------------------------------------------------- |
+| `18200` | HTTP      | 301 跳转到 `https://主机:18201`                     |
+| `18201` | HTTPS/WSS | 对外 API（TLS 终止后转到 Compose 服务 `api:18156`） |
+| `18156` | HTTP      | 仅本机 Nest（`127.0.0.1`），不对公网                |
 
-Let's Encrypt 的 HTTP-01 需要 80，本机用不了 80，因此证书用 **DNS-01**（在域名解析里加 TXT，或用 Cloudflare 等插件）。
+Let's Encrypt 的 HTTP-01 需要 80，本机用不了 80，因此证书用 **DNS-01**。Certbot 官方镜像把证书写到仓库内 `deploy/letsencrypt`（对应容器 `/etc/letsencrypt`），工作目录为 `deploy/certbot-work`。二者已 gitignore，迁机时拷贝整个 `deploy/letsencrypt` 即可。
 
-1. 将 `deploy/nginx.conf.example` 拷到 `/etc/nginx/sites-available/nativelocation`。
-2. 把其中所有 `api.example.com` 换成真实域名。
-3. 先申请证书（示例：手动 DNS）：
+1. 在仓库根目录申请证书（示例：手动 DNS；把域名换成真实值）：
 
 ```bash
-sudo certbot certonly --manual --preferred-challenges dns -d api.example.com
+mkdir -p deploy/letsencrypt deploy/certbot-work
+docker run --rm -it \
+  -v "$(pwd)/deploy/letsencrypt:/etc/letsencrypt" \
+  -v "$(pwd)/deploy/certbot-work:/var/lib/letsencrypt" \
+  certbot/certbot certonly --manual --preferred-challenges dns -d api.example.com
 ```
 
-按提示添加 `_acme-challenge` TXT 后再继续。有 Cloudflare 时可用对应 certbot 插件自动加 TXT。
+按提示添加 `_acme-challenge` TXT 后再继续。有 Cloudflare 时可用对应 certbot 插件（证书仍须写到 `deploy/letsencrypt`）。若机器上已有系统目录 `/etc/letsencrypt`，可拷入仓库再挂载：`cp -a /etc/letsencrypt/. deploy/letsencrypt/`。
 
-1. `nginx -t` 后 `systemctl reload nginx`。确认 18201 段含 `Upgrade` / `Connection` 与 `proxy_read_timeout 3600s`（WebSocket）。
-2. 防火墙放行 18200、18201。
-3. 公网检查（必须带端口）：
+2. 复制并改 Nginx 配置（**仓库内**，不要拷到 `/etc/nginx`）：
+
+```bash
+cp deploy/nginx.conf.example deploy/nginx.conf
+```
+
+把 `deploy/nginx.conf` 里所有 `api.example.com` 换成真实域名（含 `ssl_certificate` 路径中的目录名；容器内路径仍是 `/etc/letsencrypt/live/...`）。确认 `proxy_pass` 为 `http://api:18156`。该文件已 gitignore，勿提交。**必须先有 `deploy/nginx.conf` 且 `deploy/letsencrypt/live/<域名>/` 下已有 pem，再 `up nginx`**，否则 Docker 可能把缺失的挂载点建成空目录，或 Nginx 因找不到证书退出。
+
+3. 启动 Nginx 容器（证书文件必须已存在，否则进程会退出）：
+
+```bash
+docker compose -f docker-compose.prod.yml --env-file .env.production up -d nginx
+docker compose -f docker-compose.prod.yml --env-file .env.production exec nginx nginx -t
+```
+
+4. 确认防火墙已放行 18200、18201（5.1.2）。
+5. 公网检查（必须带端口）：
 
 ```bash
 curl -sS https://api.example.com:18201/health
@@ -248,7 +304,23 @@ wss://api.example.com:18201/v1/location/stream?apiKey=YOUR_KEY
 ```bash
 cd NativeLocation
 git pull
-docker compose -f docker-compose.prod.yml --env-file .env.production up -d --build
+docker compose -f docker-compose.prod.yml --env-file .env.production up -d --build api
+```
+
+只重建 API 时 Nginx 容器保持运行，证书卷不受影响。改了 `deploy/nginx.conf` 后：
+
+```bash
+docker compose -f docker-compose.prod.yml --env-file .env.production exec nginx nginx -s reload
+```
+
+证书续期（写入 `deploy/letsencrypt`，然后 reload，不必重建镜像）：
+
+```bash
+docker run --rm \
+  -v "$(pwd)/deploy/letsencrypt:/etc/letsencrypt" \
+  -v "$(pwd)/deploy/certbot-work:/var/lib/letsencrypt" \
+  certbot/certbot renew
+docker compose -f docker-compose.prod.yml --env-file .env.production exec nginx nginx -s reload
 ```
 
 Prisma 有新迁移时，容器启动时的 `migrate deploy` 会执行。**不要**在生产对库跑 `prisma migrate dev`。
@@ -440,30 +512,34 @@ npx eas-cli submit --profile production --platform ios
 
 ## 13. 故障排查
 
-| 现象                               | 处理                                                                                         |
-| ---------------------------------- | -------------------------------------------------------------------------------------------- |
-| api 容器立刻退出                   | 查 `API_KEY` 是否在 `--env-file` 中；`NODE_ENV` 是否为 production                            |
-| migrate 失败                       | 查 `POSTGRES_USER` / `POSTGRES_PASSWORD` / `POSTGRES_DB`；`docker compose ... logs postgres` |
-| `/health` 通但 App 401             | 客户端 `EXPO_PUBLIC_API_KEY` 与服务器不一致，或该次构建未注入变量                            |
-| App 仍请求 `http://10.0.2.2:18156` | 生产构建未设置 `EXPO_PUBLIC_API_HTTP_URL`，打了开发回落                                      |
-| WSS 连上立刻断开                   | 查 Nginx `Upgrade`；查 query 是否为 `apiKey`（不是 `X-Api-Key`）                             |
-| 仅 HTTP 通、WSS 失败               | `proxy_read_timeout` 过短或漏了 Connection upgrade                                           |
-| iOS 构建缺证书                     | `eas credentials` 按提示生成；Bundle ID 必须与开发者后台一致                                 |
-| Play 拒包 versionCode              | 提高 `android.versionCode` 后重打 production                                                 |
-| 定位权限被拒后无数据               | 符合设计；引导用户到系统设置。生产包不能在后台持续采点                                       |
-| 18200/18201 连不上                 | 查防火墙与 Nginx `listen`；证书须 DNS-01；客户端 URL 必须带 `:18201`                         |
+| 现象                               | 处理                                                                                             |
+| ---------------------------------- | ------------------------------------------------------------------------------------------------ |
+| api 容器立刻退出                   | 查 `API_KEY` 是否在 `--env-file` 中；`NODE_ENV` 是否为 production                                |
+| migrate 失败                       | 查 `POSTGRES_USER` / `POSTGRES_PASSWORD` / `POSTGRES_DB`；`docker compose ... logs postgres`     |
+| `/health` 通但 App 401             | 客户端 `EXPO_PUBLIC_API_KEY` 与服务器不一致，或该次构建未注入变量                                |
+| App 仍请求 `http://10.0.2.2:18156` | 生产构建未设置 `EXPO_PUBLIC_API_HTTP_URL`，打了开发回落                                          |
+| WSS 连上立刻断开                   | 查 Nginx `Upgrade`；查 query 是否为 `apiKey`（不是 `X-Api-Key`）                                 |
+| 仅 HTTP 通、WSS 失败               | `proxy_read_timeout` 过短或漏了 Connection upgrade                                               |
+| iOS 构建缺证书                     | `eas credentials` 按提示生成；Bundle ID 必须与开发者后台一致                                     |
+| Play 拒包 versionCode              | 提高 `android.versionCode` 后重打 production                                                     |
+| 定位权限被拒后无数据               | 符合设计；引导用户到系统设置。生产包不能在后台持续采点                                           |
+| 18200/18201 连不上                 | 查防火墙与 Compose `nginx` 是否在跑；证书须 DNS-01；客户端 URL 必须带 `:18201`                   |
+| nginx 容器立刻退出                 | 缺 `deploy/nginx.conf`，或 `deploy/letsencrypt/live/<域名>/` 无 pem；`docker compose logs nginx` |
+| `apt-get: command not found`       | 不需要装系统 Nginx；Certbot 用 `docker run certbot/certbot`                                      |
+| Nginx 502                          | API 未就绪或 `proxy_pass` 误写成 `127.0.0.1`（容器内应是 `http://api:18156`）                    |
+| 证书 Permission denied             | SELinux：`chcon -Rt container_file_t deploy/letsencrypt`                                         |
 
 ---
 
 ## 14. 与开发环境的区别（避免混用）
 
-| 项       | 本地开发                           | 生产                                      |
-| -------- | ---------------------------------- | ----------------------------------------- |
-| Compose  | `docker-compose.yml`，库端口 16875 | `docker-compose.prod.yml`，库不映射公网   |
-| API 地址 | `http://局域网IP:18156`            | `https://你的域名:18201`                  |
-| WS       | `ws://.../v1/location/stream`      | `wss://你的域名:18201/v1/location/stream` |
-| API Key  | 可不设（放行）                     | 必设，否则拒启                            |
-| 客户端   | Expo Go / `pnpm dev:mobile`        | EAS 独立包                                |
-| 环境变量 | 仅根目录 `.env`                    | Compose `.env.production`；EAS 控制台     |
+| 项       | 本地开发                           | 生产                                                                |
+| -------- | ---------------------------------- | ------------------------------------------------------------------- |
+| Compose  | `docker-compose.yml`，库端口 16875 | `docker-compose.prod.yml`：库不映射公网；Nginx 容器对外 18200/18201 |
+| API 地址 | `http://局域网IP:18156`            | `https://你的域名:18201`                                            |
+| WS       | `ws://.../v1/location/stream`      | `wss://你的域名:18201/v1/location/stream`                           |
+| API Key  | 可不设（放行）                     | 必设，否则拒启                                                      |
+| 客户端   | Expo Go / `pnpm dev:mobile`        | EAS 独立包                                                          |
+| 环境变量 | 仅根目录 `.env`                    | Compose `.env.production`；EAS 控制台                               |
 
 开发机不要对生产库跑 `pnpm db:migrate`（那是 `migrate dev`）。生产只用镜像内的 `prisma migrate deploy`。

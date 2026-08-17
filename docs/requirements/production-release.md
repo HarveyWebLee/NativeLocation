@@ -22,7 +22,7 @@
 - 接口静态 API Key（HTTP `X-Api-Key`，WebSocket 查询参数 `apiKey`）；`GET /health` 免密钥。
 - 独立 App 构建配置（EAS）；生产构建写入 `EXPO_PUBLIC_API_*` 与 Key。
 - 店铺材料：隐私政策正文、权限说明；生产包**不声明未实现的后台定位能力**（避免审核失败）。
-- VPS 部署样例：Docker Compose + Nginx 配置示例。
+- VPS 部署样例：Docker Compose（Postgres + API + Nginx）；Nginx 配置与证书均在 `deploy/` 下挂载。
 
 ### 明确不做
 

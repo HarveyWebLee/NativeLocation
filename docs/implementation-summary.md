@@ -177,7 +177,7 @@ pnpm dev:mobile
 
 ## 8. 生产构建与发布
 
-操作步骤（VPS、Nginx、EAS、商店材料、验收与排障）见 [deploy.md](./deploy.md)。决策见 [architecture/production-release.md](./architecture/production-release.md)。
+操作步骤（VPS、Compose 内 Nginx 与证书卷、EAS、商店材料、验收与排障）见 [deploy.md](./deploy.md)。决策见 [architecture/production-release.md](./architecture/production-release.md)。
 
 ## 9. 关键决策回顾
 

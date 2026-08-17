@@ -1,6 +1,9 @@
-# 将 server_name 与证书路径换成你的域名后再启用。
+# 复制为 deploy/nginx.conf（已 gitignore），把 api.example.com 换成真实域名。
+# 由 docker-compose.prod.yml 挂载进 Nginx 容器，不要装到宿主机 /etc/nginx。
+# 证书在仓库 deploy/letsencrypt（Certbot 写入，已 gitignore），容器内仍是 /etc/letsencrypt。
 # 本方案不使用 80/443：HTTP=18200，HTTPS/WSS=18201。
 # 证书须用 DNS-01（HTTP-01 依赖 80）。客户端 URL 必须带 :18201。
+# proxy_pass 指向 Compose 服务名 api，不是 127.0.0.1。
 
 server {
     listen 18200;
@@ -18,7 +21,7 @@ server {
     ssl_certificate_key /etc/letsencrypt/live/api.example.com/privkey.pem;
 
     location / {
-        proxy_pass http://127.0.0.1:18156;
+        proxy_pass http://api:18156;
         proxy_http_version 1.1;
         proxy_set_header Host $host;
         proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;

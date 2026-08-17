@@ -14,6 +14,15 @@ coverage/
 !.env.example
 !.env.*.example
 
+# 生产 Nginx 实配（含真实域名）；保留 deploy/nginx.conf.example
+deploy/nginx.conf
+
+# Let's Encrypt 证书与 Certbot 工作目录（勿入库）；保留 .gitkeep
+deploy/letsencrypt/*
+!deploy/letsencrypt/.gitkeep
+deploy/certbot-work/*
+!deploy/certbot-work/.gitkeep
+
 # 证书、签名、商店与推送凭据（勿入库）
 *.pem
 *.p8
