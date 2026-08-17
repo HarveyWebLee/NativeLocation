@@ -8,6 +8,7 @@
   "exports": {
     ".": {
       "react-native": "./src/index.ts",
+      "browser": "./src/index.ts",
       "types": "./dist/index.d.ts",
       "require": "./dist/index.js",
       "default": "./dist/index.js"
