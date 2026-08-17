@@ -13,51 +13,46 @@
 
 在**尚未购买正式域名**的阶段，用一台**已允许公网访问**的本机或服务器，通过 **Docker Compose** 部署后端与 Mobile Web，并在真机外网完成定位上报内测。
 
-与纯局域网 `pnpm dev:*` 联调、与生产上架分流：内测验证公网可达与业务链路；生产见 [production-release.md](./production-release.md) 与 [../deploy.md](../deploy.md)。
+**Android 内测主路径：** 部署机**本机编译** debug APK → Web 页**公开下载**；由 Web「开始构建」按钮触发（`X-Api-Key` = `API_KEY`）。Expo Go 仅备选。iOS 仍用 Expo Go。
 
 ## 范围
 
 ### 本期（In Scope）
 
-- 复用 `docker-compose.prod.yml`，内测启动 **postgres + api + web**（**不起 nginx**；无域名/证书时不要起 nginx）。
-- 环境文件使用 **`.env.production`**（由 `.env.production.example` 复制）。
-- Postgres 宿主机端口仅绑 **`127.0.0.1:${POSTGRES_PORT}`**（默认 16875），不对公网暴露。
-- API 对外：`0.0.0.0:18156`（HTTP / WS）；Mobile Web 对外：`0.0.0.0:${WEB_PORT:-18202}`（静态站）。
-- 客户端：
-  - **iOS**：Expo Go（SDK 54），API 指向公网 `http://<公网IP>:18156`。
-  - **Android**：可用 EAS **preview APK**（明文 HTTP 时自动允许 cleartext）；也可用 Expo Go。
-  - **浏览器**：访问 Compose 中的 Mobile Web（定位能力弱于原生，作辅助预览）。
-- 公网暴露时配置成对 `API_KEY` 与 `EXPO_PUBLIC_API_KEY`；Web 构建需写入 `EXPO_PUBLIC_API_HTTP_URL` / `EXPO_PUBLIC_API_WS_URL`；浏览器访问 API 时配置 `CORS_ORIGIN`。
-- 防火墙仅放行 **18156**、**18202**（及后续生产才用的 18200/18201）。
+- Compose：`postgres + api + web`（不起 nginx）；`.env.production`；库仅 `127.0.0.1`。
+- API `:18156`；Web `:8881`（容器内亦 8881）。
+- **APK 自动化：**
+  - 宿主机安装 JDK + Android SDK；运行 **APK build agent**（本机进程，非云 EAS）。
+  - 构建：`expo prebuild` + Gradle **`assembleDebug`**（debug keystore）。
+  - 注入 `.env.production` 的 `EXPO_PUBLIC_API_*`。
+  - 产物：`deploy/apk/native-location-preview.apk`，经 Web `/downloads/` 公开下载。
+  - `POST /v1/admin/apk/build` 需 `X-Api-Key`；`GET /v1/admin/apk/status` 公开；同时仅一个构建任务。
+  - Web 页：下载入口 + 开始构建（使用已注入的 `EXPO_PUBLIC_API_KEY`）。
+- iOS：Expo Go 备选。
 
 ### 明确不做
 
-- 内测阶段不要求正式域名 / Let's Encrypt / 启动 nginx。
-- 不把 Metro / Expo Go 打进 Compose；iOS 内测仍用本机或开发机起 Expo Go。
-- 不上架、不托管隐私政策 HTTPS（留给生产发布）。
+- EAS 云构建作主路径；本机 release 正式签名；iOS IPA 自动分发；商店上架。
 
 ## 已决
 
-| 项            | 结论                                                       |
-| ------------- | ---------------------------------------------------------- |
-| 编排文件      | 复用 `docker-compose.prod.yml`；内测 `up postgres api web` |
-| 环境文件      | `.env.production`                                          |
-| Postgres 映射 | 仅 `127.0.0.1:${POSTGRES_PORT}:5432`                       |
-| 服务组成      | postgres + api + mobile web；nginx 仅生产 HTTPS 阶段       |
-| 对外协议      | API：`http://<公网IP>:18156`；Web：`http://<公网IP>:18202` |
-| iOS           | Expo Go                                                    |
-| Android       | 允许 EAS preview APK（`http://` API 时启用 cleartext）     |
-| 鉴权          | 必须设 `API_KEY`；客户端 / Web 构建注入相同 Key            |
-| 验收网络      | 真机用蜂窝网络（或非本机局域网）访问                       |
+| 项               | 结论                                       |
+| ---------------- | ------------------------------------------ |
+| APK 构建         | 宿主机本机编译（prebuild + assembleDebug） |
+| 触发             | Web 按钮 → API → 本机 agent                |
+| 触发鉴权         | `API_KEY` / `X-Api-Key`                    |
+| 下载             | 公开，无鉴权                               |
+| API 地址写入 APK | `.env.production` 的 `EXPO_PUBLIC_API_*`   |
+| 签名             | debug keystore                             |
+| Android 主路径   | Web 下载 APK；Expo Go 备选                 |
 
 ## 验收标准
 
-- `docker compose ... ps` 中 postgres、api、web 为 running。
-- 外网可访问 `http://<公网IP>:18156/health` 与 `http://<公网IP>:18202/`。
-- 本机以外无法直接连 `POSTGRES_PORT`（仅 127.0.0.1）。
-- iOS Expo Go 或 Android preview APK：注册设备 → 授权定位 → 开启追踪 → 入库可见。
-- 无 Key 的业务接口 401；带正确 Key 可注册与上报。
+- 宿主机 agent 运行时，Web 可触发构建；状态可见；成功后 `/downloads/native-location-preview.apk` 可公开下载。
+- 无 Key 无法触发构建；下载无需 Key。
+- APK 安装后可连公网 API 完成定位上报入库。
+- 构建中再次触发返回冲突（同时仅一个任务）。
 
 ## 操作手册
 
-逐步步骤见 [../internal-release.md](../internal-release.md)。
+见 [../internal-release.md](../internal-release.md)。

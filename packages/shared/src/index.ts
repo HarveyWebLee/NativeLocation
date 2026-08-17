@@ -42,4 +42,10 @@ export const API_PATHS = {
   registerDevice: '/v1/devices/register',
   locationBatch: '/v1/location/batch',
   locationStream: '/v1/location/stream',
+  apkBuild: '/v1/admin/apk/build',
+  apkStatus: '/v1/admin/apk/status',
 } as const;
+
+/** Web / Nginx 公开下载的内测 APK 相对路径 */
+export const APK_DOWNLOAD_PATH =
+  '/downloads/native-location-preview.apk' as const;

@@ -22,6 +22,13 @@ deploy/letsencrypt/*
 !deploy/letsencrypt/.gitkeep
 deploy/certbot-work/*
 !deploy/certbot-work/.gitkeep
+deploy/apk/*
+!deploy/apk/.gitkeep
+!deploy/apk/README.md
+
+# Expo prebuild 生成的原生工程（本机构建 APK 时产生）
+apps/mobile/android/
+apps/mobile/ios/
 
 # 证书、签名、商店与推送凭据（勿入库）
 *.pem

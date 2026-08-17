@@ -23,16 +23,18 @@ MVP 使用明文 HTTP/WS、开放 CORS、无鉴权、仅 Expo Go。生产需在�
 8. **密钥**：不入库；`.env.production` gitignore。
 9. **本地只维护仓库根目录 `.env`。** Prisma / Nest / Expo 启动时加载该文件；已存在的环境变量不覆盖。生产 API 由 Compose 注入 `.env.production`，镜像不包含 `.env`；独立包由 EAS 注入 `EXPO_PUBLIC_*`，不读开发机 `.env`。
 10. **数据库连接只配 `POSTGRES_*`。** 不在环境文件写 `DATABASE_URL`。Nest 与 Prisma CLI 在进程内拼接。`.env.production` 的 `POSTGRES_PORT` 只给 Compose 做宿主机映射（**`127.0.0.1:${POSTGRES_PORT}`**）；生产 API 容器仍由 Compose 注入 `POSTGRES_HOST=postgres`、`POSTGRES_PORT=5432`（连 Docker 内网，不是宿主机端口）。密码中的 `@` 等由代码做 URL 编码。
-11. **Mobile Web** 由 `Dockerfile.web` 静态导出，Compose 服务 `web` 对外默认 **18202**；`EXPO_PUBLIC_*` 为镜像 build args。TLS 入口 Nginx 使用 Compose profile **`tls`**，与无证书的内测启动分离。
+11. **Mobile Web** 由 `Dockerfile.web` 静态导出，Compose 服务 `web` 宿主机与容器内均为 **8881**；`EXPO_PUBLIC_*` 为镜像 build args。TLS 入口 Nginx 使用 Compose profile **`tls`**，与无证书的内测启动分离。
+12. **内测 Android APK**：部署机本机（JDK + Android SDK）由 **apk-build-agent** 执行 `expo prebuild` + `assembleDebug`；API `POST /v1/admin/apk/build`（`X-Api-Key`）转发至 agent（`host.docker.internal`）；产物挂载到 Web `/downloads/` **公开下载**；与 EAS 云构建解耦。
 
 ## 影响面
 
-| 面     | 影响                                                                             |
-| ------ | -------------------------------------------------------------------------------- |
-| api    | Guard、启动校验、Docker Compose（含 Nginx / Web）、CORS；`POSTGRES_*` 拼接库连接 |
-| mobile | 请求带头、WS 带 query、eas.json、Web 静态导出镜像、明文 HTTP cleartext 条件开启  |
-| shared | `API_KEY_HEADER` 常量                                                            |
-| 数据   | 无 schema 变更；部署用 migrate deploy                                            |
+| 面     | 影响                                                                    |
+| ------ | ----------------------------------------------------------------------- |
+| api    | Guard、Compose（Nginx/Web）、CORS、`POSTGRES_*`、APK 构建代理转发与状态 |
+| mobile | 请求鉴权、Web 静态站、cleartext、Web 下载/构建入口                      |
+| shared | `API_KEY_HEADER`、APK admin 路径常量                                    |
+| 数据   | 无 schema 变更；部署用 migrate deploy                                   |
+| 运维   | 宿主机需常驻 `pnpm apk:agent`；需 Android SDK                           |
 
 ## 备选方案
 

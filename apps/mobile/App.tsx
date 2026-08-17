@@ -28,6 +28,7 @@ import {
   LOCATION_SAMPLE_INTERVALS,
 } from './src/location/sample-intervals';
 import { LocationTracker, type TrackingStatus } from './src/location/tracker';
+import { ApkReleasePanel } from './src/ui/apk-release-panel';
 import { FormattedJson } from './src/ui/formatted-json';
 import { tamaguiConfig } from './tamagui.config';
 
@@ -280,6 +281,8 @@ function AppContent() {
               </YStack>
             ) : null}
           </YStack>
+
+          <ApkReleasePanel />
 
           <YStack
             rounded="$7"

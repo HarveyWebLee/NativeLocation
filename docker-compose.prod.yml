@@ -34,6 +34,11 @@ services:
       POSTGRES_DB: ${POSTGRES_DB}
       POSTGRES_HOST: postgres
       POSTGRES_PORT: '5432'
+      APK_BUILD_AGENT_URL: ${APK_BUILD_AGENT_URL:-http://host.docker.internal:18210}
+    extra_hosts:
+      - 'host.docker.internal:host-gateway'
+    volumes:
+      - ./deploy/apk:/app/deploy/apk
     ports:
       - '0.0.0.0:18156:18156'
 
@@ -49,7 +54,9 @@ services:
     depends_on:
       - api
     ports:
-      - '0.0.0.0:${WEB_PORT:-18202}:80'
+      - '0.0.0.0:${WEB_PORT:-8881}:8881'
+    volumes:
+      - ./deploy/apk:/apk:ro
 
   nginx:
     image: nginx:1.27-alpine
