@@ -18,7 +18,7 @@
 
 ### 本期（In Scope）
 
-- 生产 API：HTTPS/WSS（反向代理终止 TLS）、PostgreSQL 不对外暴露、`prisma migrate deploy`。
+- 生产 API：HTTPS/WSS（反向代理终止 TLS）、PostgreSQL 映射宿主机 `0.0.0.0:${POSTGRES_PORT}`、`prisma migrate deploy`。
 - 接口静态 API Key（HTTP `X-Api-Key`，WebSocket 查询参数 `apiKey`）；`GET /health` 免密钥。
 - 独立 App 构建配置（EAS）；生产构建写入 `EXPO_PUBLIC_API_*` 与 Key。
 - 店铺材料：隐私政策正文、权限说明；生产包**不声明未实现的后台定位能力**（避免审核失败）。

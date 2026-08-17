@@ -16,16 +16,16 @@
 
 仓库内相关文件：
 
-| 路径                           | 用途                                               |
-| ------------------------------ | -------------------------------------------------- |
-| `.env.production.example`      | 复制为根目录 `.env.production`（已忽略）           |
-| `Dockerfile`                   | 生产 API 镜像（含 migrate + 启动）                 |
-| `docker-compose.prod.yml`      | Postgres + API + Nginx；API 只绑 `127.0.0.1:18156` |
-| `deploy/nginx.conf.example`    | 复制为 `deploy/nginx.conf`，挂进 Nginx 容器        |
-| `deploy/letsencrypt/`          | Certbot 写入的证书目录（gitignore），挂进 Nginx    |
-| `apps/mobile/eas.json`         | EAS 构建档：development / preview / production     |
-| `apps/mobile/app.json`         | 包名、版本、定位权限文案                           |
-| `docs/legal/privacy-policy.md` | 隐私政策草稿，须托管为 HTTPS 再填商店              |
+| 路径                           | 用途                                            |
+| ------------------------------ | ----------------------------------------------- |
+| `.env.production.example`      | 复制为根目录 `.env.production`（已忽略）        |
+| `Dockerfile`                   | 生产 API 镜像（含 migrate + 启动）              |
+| `docker-compose.prod.yml`      | Postgres + API + Nginx；端口均绑 `0.0.0.0`      |
+| `deploy/nginx.conf.example`    | 复制为 `deploy/nginx.conf`，挂进 Nginx 容器     |
+| `deploy/letsencrypt/`          | Certbot 写入的证书目录（gitignore），挂进 Nginx |
+| `apps/mobile/eas.json`         | EAS 构建档：development / preview / production  |
+| `apps/mobile/app.json`         | 包名、版本、定位权限文案                        |
+| `docs/legal/privacy-policy.md` | 隐私政策草稿，须托管为 HTTPS 再填商店           |
 
 本期**不做**：用户登录、多实例、Redis、后台持续定位、代注册商店账号、代申请域名证书。
 
@@ -82,7 +82,8 @@ openssl rand -hex 32
   Docker 网内 api:18156  NestJS
         │
         ▼
-  Docker 内网 Postgres:5432（不映射公网）
+  Docker 内网 Postgres:5432
+  宿主机 0.0.0.0:${POSTGRES_PORT}（默认 16875）
 ```
 
 - Nest 在容器内仍是 HTTP。对外反向代理：**18200** = HTTP（301 到 HTTPS），**18201** = HTTPS/WSS。不使用 80/443。
@@ -114,7 +115,7 @@ pnpm typecheck
 
 ## 5. 部署生产 API（自有 VPS）
 
-以下在 **VPS** 上操作，已能 SSH。本栈 **不在宿主机安装 Nginx**。TLS 入口是 Compose 里的 `nginx` 服务；`deploy/nginx.conf` 与 `deploy/letsencrypt` 只读挂进容器。不要开放 80/443 给本服务。**不要**把 `5432` 或 `18156` 暴露到 `0.0.0.0`。Compose 已把 API 映射为 `127.0.0.1:18156:18156`（仅本机探活）。
+以下在 **VPS** 上操作，已能 SSH。本栈 **不在宿主机安装 Nginx**。TLS 入口是 Compose 里的 `nginx` 服务；`deploy/nginx.conf` 与 `deploy/letsencrypt` 只读挂进容器。不要开放 80/443 给本服务。Compose 把 Postgres、API、Nginx 的宿主机端口都绑到 `0.0.0.0`（库为 `${POSTGRES_PORT}` 默认 16875，API 为 18156，Nginx 为 18200/18201）。是否对公网可达由云安全组/防火墙决定；手册默认只放行 18200/18201。
 
 已是 `root` 时可省略 `sudo`。Docker 已安装则跳过 5.1.1，只确认版本。
 
@@ -187,6 +188,7 @@ chmod 600 .env.production
 | `POSTGRES_USER`     | 默认 `nativelocation`                                                    |
 | `POSTGRES_PASSWORD` | 强密码。含 `@` `#` `%` 等时由 API 进程 URL 编码，不必再写 `DATABASE_URL` |
 | `POSTGRES_DB`       | 默认 `nativelocation`                                                    |
+| `POSTGRES_PORT`     | 宿主机映射端口，默认 `16875`，绑 `0.0.0.0`；API 容器仍连内网 `5432`      |
 | `API_KEY`           | 与后续 EAS 的 `EXPO_PUBLIC_API_KEY` 相同                                 |
 | `CORS_ORIGIN`       | 生产可留空                                                               |
 
@@ -220,7 +222,7 @@ curl -sS http://127.0.0.1:18156/health
 | ------- | --------- | --------------------------------------------------- |
 | `18200` | HTTP      | 301 跳转到 `https://主机:18201`                     |
 | `18201` | HTTPS/WSS | 对外 API（TLS 终止后转到 Compose 服务 `api:18156`） |
-| `18156` | HTTP      | 仅本机 Nest（`127.0.0.1`），不对公网                |
+| `18156` | HTTP      | Nest 明文；绑 `0.0.0.0`。对外请走 `18201` HTTPS     |
 
 Let's Encrypt 的 HTTP-01 需要 80，本机用不了 80，因此证书用 **DNS-01**。Certbot 官方镜像把证书写到仓库内 `deploy/letsencrypt`（对应容器 `/etc/letsencrypt`），工作目录为 `deploy/certbot-work`。二者已 gitignore，迁机时拷贝整个 `deploy/letsencrypt` 即可。
 
@@ -533,13 +535,13 @@ npx eas-cli submit --profile production --platform ios
 
 ## 14. 与开发环境的区别（避免混用）
 
-| 项       | 本地开发                           | 生产                                                                |
-| -------- | ---------------------------------- | ------------------------------------------------------------------- |
-| Compose  | `docker-compose.yml`，库端口 16875 | `docker-compose.prod.yml`：库不映射公网；Nginx 容器对外 18200/18201 |
-| API 地址 | `http://局域网IP:18156`            | `https://你的域名:18201`                                            |
-| WS       | `ws://.../v1/location/stream`      | `wss://你的域名:18201/v1/location/stream`                           |
-| API Key  | 可不设（放行）                     | 必设，否则拒启                                                      |
-| 客户端   | Expo Go / `pnpm dev:mobile`        | EAS 独立包                                                          |
-| 环境变量 | 仅根目录 `.env`                    | Compose `.env.production`；EAS 控制台                               |
+| 项       | 本地开发                           | 生产                                                                                            |
+| -------- | ---------------------------------- | ----------------------------------------------------------------------------------------------- |
+| Compose  | `docker-compose.yml`，库端口 16875 | `docker-compose.prod.yml`：库/API/Nginx 均绑 `0.0.0.0`；库端口 `${POSTGRES_PORT}`（默认 16875） |
+| API 地址 | `http://局域网IP:18156`            | `https://你的域名:18201`                                                                        |
+| WS       | `ws://.../v1/location/stream`      | `wss://你的域名:18201/v1/location/stream`                                                       |
+| API Key  | 可不设（放行）                     | 必设，否则拒启                                                                                  |
+| 客户端   | Expo Go / `pnpm dev:mobile`        | EAS 独立包                                                                                      |
+| 环境变量 | 仅根目录 `.env`                    | Compose `.env.production`；EAS 控制台                                                           |
 
 开发机不要对生产库跑 `pnpm db:migrate`（那是 `migrate dev`）。生产只用镜像内的 `prisma migrate deploy`。

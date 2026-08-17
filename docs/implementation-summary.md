@@ -136,7 +136,7 @@ pnpm db:logs
 
 加载时不覆盖已存在的 `process.env`，因此生产注入始终优先。
 
-数据库相关只配置 `POSTGRES_USER` / `POSTGRES_PASSWORD` / `POSTGRES_DB` / `POSTGRES_HOST` / `POSTGRES_PORT`。不要写 `DATABASE_URL`；Nest 启动与 Prisma CLI 会在进程内拼接，供 Prisma `env("DATABASE_URL")` 读取。生产 API 容器由 Compose 注入 `POSTGRES_HOST=postgres`、`POSTGRES_PORT=5432`（连 Docker 网络内的库，不是宿主机映射端口）。
+数据库相关只配置 `POSTGRES_USER` / `POSTGRES_PASSWORD` / `POSTGRES_DB` / `POSTGRES_HOST` / `POSTGRES_PORT`。不要写 `DATABASE_URL`；Nest 启动与 Prisma CLI 会在进程内拼接，供 Prisma `env("DATABASE_URL")` 读取。生产 `.env.production` 的 `POSTGRES_PORT`（默认 16875）只用于宿主机映射 `0.0.0.0:${POSTGRES_PORT}:5432`；API 容器由 Compose 注入 `POSTGRES_HOST=postgres`、`POSTGRES_PORT=5432`（连 Docker 内网，不是宿主机端口）。
 
 ## 6. 本地联调流程
 
