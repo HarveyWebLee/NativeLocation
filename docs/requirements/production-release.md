@@ -1,18 +1,21 @@
 # 生产环境发布准备
 
-| 项       | 内容                                                                           |
-| -------- | ------------------------------------------------------------------------------ |
-| 文档类型 | 独立业务需求                                                                   |
-| 状态     | 已确认                                                                         |
-| 总 FRD   | [../functional-requirements.md](../functional-requirements.md)                 |
-| 架构决策 | [../architecture/production-release.md](../architecture/production-release.md) |
-| 实现总览 | [../implementation-summary.md](../implementation-summary.md)                   |
-| 隐私政策 | [../legal/privacy-policy.md](../legal/privacy-policy.md)                       |
-| 操作手册 | [../deploy.md](../deploy.md)                                                   |
+| 项       | 内容                                                                             |
+| -------- | -------------------------------------------------------------------------------- |
+| 文档类型 | 独立业务需求                                                                     |
+| 状态     | 已确认                                                                           |
+| 总 FRD   | [../functional-requirements.md](../functional-requirements.md)                   |
+| 架构决策 | [../architecture/production-release.md](../architecture/production-release.md)   |
+| 实现总览 | [../implementation-summary.md](../implementation-summary.md)                     |
+| 隐私政策 | [../legal/privacy-policy.md](../legal/privacy-policy.md)                         |
+| 操作手册 | [../deploy.md](../deploy.md)                                                     |
+| 公网内测 | [../internal-release.md](../internal-release.md)（无域名本机公网阶段，先于本文） |
 
 ## 背景与目标
 
 将当前仅适合内网/Expo Go 的 MVP，准备为可在自有 VPS 上运行的生产服务，并打出可上架的 iOS / Android 独立安装包。
+
+无正式域名、仅需外网真机验收时，先完成 [公网内测](../internal-release.md)，再回到本文做 HTTPS 与独立包。
 
 ## 范围
 

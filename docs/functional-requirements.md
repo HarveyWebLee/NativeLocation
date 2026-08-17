@@ -62,10 +62,11 @@
 
 总 FRD 描述产品能力全集；**每个独立需求另有一份文档**，修改该能力时先改对应文档。
 
-| 文档                                                                                 | 状态   | 覆盖                                       |
-| ------------------------------------------------------------------------------------ | ------ | ------------------------------------------ |
-| [requirements/mvp-foreground-location.md](./requirements/mvp-foreground-location.md) | 已确认 | S-01～S-07 / 本期 MVP（含权限与采集频率）  |
-| [requirements/production-release.md](./requirements/production-release.md)           | 已确认 | 生产发布：HTTPS、API Key、独立包与上架准备 |
+| 文档                                                                                 | 状态   | 覆盖                                            |
+| ------------------------------------------------------------------------------------ | ------ | ----------------------------------------------- |
+| [requirements/mvp-foreground-location.md](./requirements/mvp-foreground-location.md) | 已确认 | S-01～S-07 / 本期 MVP（含权限与采集频率）       |
+| [requirements/internal-release.md](./requirements/internal-release.md)               | 已确认 | 公网内测：本机公网 IP、无域名、Expo Go 外网验收 |
+| [requirements/production-release.md](./requirements/production-release.md)           | 已确认 | 生产发布：HTTPS、API Key、独立包与上架准备      |
 
 新增独立需求时在 `docs/requirements/` 建文档，并在本表追加一行。
 

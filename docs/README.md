@@ -10,6 +10,7 @@
 | 独立业务需求    | [requirements/](./requirements/)                           | 每个新的独立需求一份文档                        |
 | 架构 / 实现总览 | [implementation-summary.md](./implementation-summary.md)   | 已落地技术选型、目录、联调与预留项              |
 | 独立架构决策    | [architecture/](./architecture/)                           | 技术选型与方向调整的决策记录                    |
+| 公网内测        | [internal-release.md](./internal-release.md)               | 本机/公网 IP、无域名、Expo Go 外网内测手册      |
 | 生产构建发布    | [deploy.md](./deploy.md)                                   | VPS、Compose 内 Nginx、EAS 构建、上架与验收手册 |
 | 隐私政策草稿    | [legal/privacy-policy.md](./legal/privacy-policy.md)       | 上架前需托管为 HTTPS 页面                       |
 

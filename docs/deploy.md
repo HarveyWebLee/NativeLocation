@@ -2,7 +2,9 @@
 
 本文是运维与发版的逐步操作说明。决策背景见 [architecture/production-release.md](./architecture/production-release.md)，需求范围见 [requirements/production-release.md](./requirements/production-release.md)。
 
-**推荐顺序：** 先上线 HTTPS API → 用 curl 验收鉴权 → 再打独立包 → 内测 APK → 商店包。App 构建时会把 API 地址和 Key **写进包内**，服务端未就绪时打生产包没有意义。
+**尚未买域名、只用本机/已有公网 IP 做外网内测时：** 先看 [internal-release.md](./internal-release.md)（Expo Go + `http://公网IP:18156`），不必先上本文的 Nginx / EAS 生产包。
+
+**推荐顺序（正式发版）：** 先上线 HTTPS API → 用 curl 验收鉴权 → 再打独立包 → 内测 APK → 商店包。App 构建时会把 API 地址和 Key **写进包内**，服务端未就绪时打生产包没有意义。
 
 ---
 

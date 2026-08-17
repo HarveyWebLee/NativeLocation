@@ -2,13 +2,14 @@
 
 本文档总结当前 monorepo 已落地的架构与能力（MVP）。
 
-| 关联         | 路径                                                                                                                                                   |
-| ------------ | ------------------------------------------------------------------------------------------------------------------------------------------------------ |
-| 文档目录     | [README.md](./README.md)                                                                                                                               |
-| 产品总 FRD   | [functional-requirements.md](./functional-requirements.md)                                                                                             |
-| MVP 业务需求 | [requirements/mvp-foreground-location.md](./requirements/mvp-foreground-location.md)                                                                   |
-| MVP 架构决策 | [architecture/mvp-technical-decisions.md](./architecture/mvp-technical-decisions.md)                                                                   |
-| 生产发布     | [requirements/production-release.md](./requirements/production-release.md)、[architecture/production-release.md](./architecture/production-release.md) |
+| 关联         | 路径                                                                                                                                                                             |
+| ------------ | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| 文档目录     | [README.md](./README.md)                                                                                                                                                         |
+| 产品总 FRD   | [functional-requirements.md](./functional-requirements.md)                                                                                                                       |
+| MVP 业务需求 | [requirements/mvp-foreground-location.md](./requirements/mvp-foreground-location.md)                                                                                             |
+| MVP 架构决策 | [architecture/mvp-technical-decisions.md](./architecture/mvp-technical-decisions.md)                                                                                             |
+| 公网内测     | [requirements/internal-release.md](./requirements/internal-release.md)、[internal-release.md](./internal-release.md)                                                             |
+| 生产发布     | [requirements/production-release.md](./requirements/production-release.md)、[architecture/production-release.md](./architecture/production-release.md)、[deploy.md](./deploy.md) |
 
 ## 1. 目标
 
@@ -82,7 +83,8 @@ NativeLocation/
 - Metro 版本：根 `package.json` 的 `pnpm.overrides` 将 Metro 全家桶锁定为 **0.83.3**（与 Expo SDK 54 / `@expo/metro` 一致），避免 pnpm hoist 混入 RN 的 0.83.7 导致 `addedFiles` 崩溃
 - Web 预览请用 **Chrome / Edge** 打开 `http://localhost:8881`；Cursor / VS Code Simple Browser（`vscode-file://`）会被 Expo 拒绝
 - API 地址：`EXPO_PUBLIC_API_HOST` / `EXPO_PUBLIC_API_PORT`
-- 真机请使用电脑局域网 IP（如 `192.168.15.92`）
+- 同 Wi‑Fi 真机：电脑局域网 IP（如 `192.168.15.92`）
+- 外网内测（本机已有公网 IP）：填公网 IP，并配置成对 `API_KEY` / `EXPO_PUBLIC_API_KEY`，步骤见 [internal-release.md](./internal-release.md)
 - Android 模拟器可用 `10.0.2.2`
 
 ### 4.2 后端（`apps/api`）
