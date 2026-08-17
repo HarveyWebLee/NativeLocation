@@ -3,7 +3,7 @@ services:
     image: postgres:16-alpine
     restart: unless-stopped
     ports:
-      - '0.0.0.0:${POSTGRES_PORT:-16875}:5432'
+      - '127.0.0.1:${POSTGRES_PORT:-16875}:5432'
     environment:
       POSTGRES_USER: ${POSTGRES_USER}
       POSTGRES_PASSWORD: ${POSTGRES_PASSWORD}
@@ -37,6 +37,20 @@ services:
     ports:
       - '0.0.0.0:18156:18156'
 
+  web:
+    build:
+      context: .
+      dockerfile: Dockerfile.web
+      args:
+        EXPO_PUBLIC_API_HTTP_URL: ${EXPO_PUBLIC_API_HTTP_URL}
+        EXPO_PUBLIC_API_WS_URL: ${EXPO_PUBLIC_API_WS_URL}
+        EXPO_PUBLIC_API_KEY: ${EXPO_PUBLIC_API_KEY}
+    restart: unless-stopped
+    depends_on:
+      - api
+    ports:
+      - '0.0.0.0:${WEB_PORT:-18202}:80'
+
   nginx:
     image: nginx:1.27-alpine
     restart: unless-stopped
@@ -48,6 +62,8 @@ services:
     volumes:
       - ./deploy/nginx.conf:/etc/nginx/conf.d/default.conf:ro
       - ./deploy/letsencrypt:/etc/letsencrypt:ro
+    profiles:
+      - tls
 
 volumes:
   postgres_data:

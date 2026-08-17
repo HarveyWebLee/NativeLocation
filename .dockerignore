@@ -9,7 +9,6 @@ coverage
 **/.env.*
 !**/.env.example
 !**/.env.*.example
-apps/mobile
 *.log
 *.md
 !docs/legal/privacy-policy.md

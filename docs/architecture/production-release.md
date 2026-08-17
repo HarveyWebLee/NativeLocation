@@ -17,21 +17,22 @@ MVP 使用明文 HTTP/WS、开放 CORS、无鉴权、仅 Expo Go。生产需在�
 2. **静态 API Key**：环境变量 `API_KEY`；HTTP 头 `X-Api-Key`；WS 连接 `...?apiKey=`。开发未设 Key 时放行；`NODE_ENV=production` 且无 Key 则进程退出。
 3. **健康检查免鉴权**，供反向代理与探活。
 4. **CORS**：生产按 `CORS_ORIGIN` 白名单（原生 App 不走 CORS）；未配置则生产关闭浏览器跨域。
-5. **数据**：继续 PostgreSQL；生产库映射到宿主机 `0.0.0.0:${POSTGRES_PORT}`（默认 **16875**，写在 `.env.production`）。是否对公网可达由云安全组/防火墙决定；启动时 `prisma migrate deploy`。
+5. **数据**：继续 PostgreSQL；生产/内测库宿主机映射为 **`127.0.0.1:${POSTGRES_PORT}`**（默认 **16875**，写在 `.env.production`），仅本机可连，不对公网暴露。启动时 `prisma migrate deploy`。
 6. **客户端**：EAS Build；生产环境变量在构建时打入 `EXPO_PUBLIC_*`。
 7. **审核**：生产包关闭未使用的后台定位声明（`UIBackgroundModes` / `ACCESS_BACKGROUND_LOCATION`）。
 8. **密钥**：不入库；`.env.production` gitignore。
 9. **本地只维护仓库根目录 `.env`。** Prisma / Nest / Expo 启动时加载该文件；已存在的环境变量不覆盖。生产 API 由 Compose 注入 `.env.production`，镜像不包含 `.env`；独立包由 EAS 注入 `EXPO_PUBLIC_*`，不读开发机 `.env`。
-10. **数据库连接只配 `POSTGRES_*`。** 不在环境文件写 `DATABASE_URL`。Nest 与 Prisma CLI 在进程内拼接。`.env.production` 的 `POSTGRES_PORT` 只给 Compose 做宿主机映射；生产 API 容器仍由 Compose 注入 `POSTGRES_HOST=postgres`、`POSTGRES_PORT=5432`（连 Docker 内网，不是宿主机端口）。密码中的 `@` 等由代码做 URL 编码。
+10. **数据库连接只配 `POSTGRES_*`。** 不在环境文件写 `DATABASE_URL`。Nest 与 Prisma CLI 在进程内拼接。`.env.production` 的 `POSTGRES_PORT` 只给 Compose 做宿主机映射（**`127.0.0.1:${POSTGRES_PORT}`**）；生产 API 容器仍由 Compose 注入 `POSTGRES_HOST=postgres`、`POSTGRES_PORT=5432`（连 Docker 内网，不是宿主机端口）。密码中的 `@` 等由代码做 URL 编码。
+11. **Mobile Web** 由 `Dockerfile.web` 静态导出，Compose 服务 `web` 对外默认 **18202**；`EXPO_PUBLIC_*` 为镜像 build args。TLS 入口 Nginx 使用 Compose profile **`tls`**，与无证书的内测启动分离。
 
 ## 影响面
 
-| 面     | 影响                                                                       |
-| ------ | -------------------------------------------------------------------------- |
-| api    | Guard、启动校验、Docker Compose（含 Nginx）、CORS；`POSTGRES_*` 拼接库连接 |
-| mobile | 请求带头、WS 带 query、eas.json、app.json 权限收敛                         |
-| shared | `API_KEY_HEADER` 常量                                                      |
-| 数据   | 无 schema 变更；部署用 migrate deploy                                      |
+| 面     | 影响                                                                             |
+| ------ | -------------------------------------------------------------------------------- |
+| api    | Guard、启动校验、Docker Compose（含 Nginx / Web）、CORS；`POSTGRES_*` 拼接库连接 |
+| mobile | 请求带头、WS 带 query、eas.json、Web 静态导出镜像、明文 HTTP cleartext 条件开启  |
+| shared | `API_KEY_HEADER` 常量                                                            |
+| 数据   | 无 schema 变更；部署用 migrate deploy                                            |
 
 ## 备选方案
 
