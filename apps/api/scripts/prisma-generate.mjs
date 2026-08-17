@@ -1,6 +1,6 @@
 import { spawnSync } from 'node:child_process';
 import { createHash } from 'node:crypto';
-import { existsSync, readFileSync, writeFileSync } from 'node:fs';
+import { existsSync, mkdirSync, readFileSync, writeFileSync } from 'node:fs';
 import { createRequire } from 'node:module';
 import path from 'node:path';
 import process from 'node:process';
@@ -46,6 +46,8 @@ function storedHash() {
 }
 
 function persistHash(hash) {
+  // pnpm 可能把 Client 生成到 .pnpm store，根目录 .prisma/client 不会被创建
+  mkdirSync(clientDir, { recursive: true });
   writeFileSync(hashPath, `${hash}\n`);
 }
 
