@@ -11,7 +11,7 @@ ENV npm_config_registry=https://registry.npmmirror.com
 
 WORKDIR /app
 
-COPY package.json pnpm-lock.yaml pnpm-workspace.yaml ./
+COPY package.json pnpm-lock.yaml pnpm-workspace.yaml .npmrc ./
 COPY apps/api/package.json apps/api/
 COPY packages/shared/package.json packages/shared/
 COPY packages/tsconfig packages/tsconfig
@@ -20,6 +20,8 @@ RUN pnpm install --frozen-lockfile
 
 COPY packages/shared packages/shared
 COPY apps/api apps/api
+
+RUN pnpm install --frozen-lockfile
 
 RUN pnpm --filter @native-location/shared build \
   && pnpm --filter @native-location/api prisma:generate \

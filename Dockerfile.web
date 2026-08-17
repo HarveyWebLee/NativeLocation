@@ -10,7 +10,7 @@ ENV npm_config_registry=https://registry.npmmirror.com
 
 WORKDIR /app
 
-COPY package.json pnpm-lock.yaml pnpm-workspace.yaml ./
+COPY package.json pnpm-lock.yaml pnpm-workspace.yaml .npmrc ./
 COPY apps/mobile/package.json apps/mobile/
 COPY packages/shared/package.json packages/shared/
 COPY packages/tsconfig packages/tsconfig
@@ -19,6 +19,9 @@ RUN pnpm install --frozen-lockfile
 
 COPY packages/shared packages/shared
 COPY apps/mobile apps/mobile
+
+# COPY 源码可能冲掉 apps/mobile 下的链接；hoisted 依赖在根 node_modules，再装一次确保一致
+RUN pnpm install --frozen-lockfile
 
 ARG EXPO_PUBLIC_API_HTTP_URL
 ARG EXPO_PUBLIC_API_WS_URL
