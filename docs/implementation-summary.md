@@ -79,9 +79,9 @@ NativeLocation/
 
 配置要点：
 
-- Metro 端口：**8881**（`expo start --web --port 8881`，同时开浏览器预览）
+- Metro 端口：**28881**（`expo start --web --port 28881`，同时开浏览器预览）
 - Metro 版本：根 `package.json` 的 `pnpm.overrides` 将 Metro 全家桶锁定为 **0.83.3**（与 Expo SDK 54 / `@expo/metro` 一致），避免 pnpm hoist 混入 RN 的 0.83.7 导致 `addedFiles` 崩溃
-- Web 预览请用 **Chrome / Edge** 打开 `http://localhost:8881`；Cursor / VS Code Simple Browser（`vscode-file://`）会被 Expo 拒绝
+- Web 预览请用 **Chrome / Edge** 打开 `http://localhost:28881`；Cursor / VS Code Simple Browser（`vscode-file://`）会被 Expo 拒绝
 - API 地址：`EXPO_PUBLIC_API_HOST` / `EXPO_PUBLIC_API_PORT`
 - 同 Wi‑Fi 真机：电脑局域网 IP（如 `192.168.15.92`）
 - 外网内测（本机已有公网 IP）：填公网 IP，并配置成对 `API_KEY` / `EXPO_PUBLIC_API_KEY`，步骤见 [internal-release.md](./internal-release.md)
@@ -162,7 +162,7 @@ pnpm dev:mobile
 
 1. 手机与电脑同一 Wi‑Fi
 2. 用系统 **相机**扫终端二维码（新版 Expo Go 首页无扫码入口）
-3. 或 Safari 打开：`exp://<电脑局域网IP>:8881`
+3. 或 Safari 打开：`exp://<电脑局域网IP>:28881`
 4. App 内点「开启定位」，允许权限
 5. 用 `pnpm db:studio` 或查 `LocationPoint` 表验证入库
 

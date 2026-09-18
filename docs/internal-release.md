@@ -18,8 +18,8 @@
 | 客户端  | 方式                         | 说明                                   |
 | ------- | ---------------------------- | -------------------------------------- |
 | Android | **Web 下载 debug APK（主）** | 本机构建；`/downloads/...apk` 公开可下 |
-| iOS     | Expo Go（备选）              | `exp://<局域网IP>:8881`                |
-| 浏览器  | Compose **web** `:8881`      | 定位辅助 + APK 构建/下载入口           |
+| iOS     | Expo Go（备选）              | `exp://<局域网IP>:28881`               |
+| 浏览器  | Compose **web** `:28881`     | 定位辅助 + APK 构建/下载入口           |
 
 相关文件：`docker-compose.prod.yml`、`Dockerfile` / `Dockerfile.web`、`scripts/apk-build-agent.mjs`、`scripts/build-android-apk.mjs`、`deploy/apk/`。
 
@@ -30,7 +30,7 @@
 ## 2. 前置条件
 
 - [ ] Docker + Compose
-- [ ] 公网 IP；防火墙放行 **18156**、**8881**
+- [ ] 公网 IP；防火墙放行 **18156**、**28881**
 - [ ] 库端口不对公网（已绑 127.0.0.1）
 - [ ] **APK 本机构建：** 宿主机已装 **JDK 17+**、**Android SDK**（`ANDROID_HOME` / `ANDROID_SDK_ROOT`），可用内存建议 ≥ 8GB
 - [ ] 构建期间可访问 Maven/npm（或已有缓存）
@@ -44,7 +44,7 @@ cp .env.production.example .env.production
 chmod 600 .env.production
 ```
 
-必填：`API_KEY`、`EXPO_PUBLIC_API_HTTP_URL` / `WS_URL` / `API_KEY`（三者 Key 与 `API_KEY` 一致）、`CORS_ORIGIN=http://<公网IP>:8881`。
+必填：`API_KEY`、`EXPO_PUBLIC_API_HTTP_URL` / `WS_URL` / `API_KEY`（三者 Key 与 `API_KEY` 一致）、`CORS_ORIGIN=http://<公网IP>:28881`。
 
 可选：`APK_BUILD_AGENT_URL`（默认 `http://host.docker.internal:18210`）。
 
@@ -69,20 +69,20 @@ Agent 仅监听 `127.0.0.1:18210`。API 容器经 `host.docker.internal` 调用�
 ```bash
 curl -sS http://127.0.0.1:18156/health
 curl -sS http://127.0.0.1:18210/health
-curl -sS -o /dev/null -w "%{http_code}\n" http://127.0.0.1:8881/
+curl -sS -o /dev/null -w "%{http_code}\n" http://127.0.0.1:28881/
 ```
 
 ---
 
 ## 5. Web：构建与下载 APK
 
-1. 浏览器打开 `http://<公网IP>:8881/`
+1. 浏览器打开 `http://<公网IP>:28881/`
 2. 在「Android 内测 APK」卡片点 **开始构建 APK**（请求带已注入的 `EXPO_PUBLIC_API_KEY`）
 3. 等待状态变为 `success`（首次可需十余分钟）
 4. 点 **下载 APK**，或直接打开：
 
 ```text
-http://<公网IP>:8881/downloads/native-location-preview.apk
+http://<公网IP>:28881/downloads/native-location-preview.apk
 ```
 
 下载**无需**鉴权。触发构建需要有效 `X-Api-Key`。
@@ -109,7 +109,7 @@ pnpm apk:build
 
 ## 7. iOS / Expo Go（备选）
 
-开发机 `.env` 指向同一公网 API 与 Key → `pnpm dev:mobile` → `exp://<局域网IP>:8881`。勿与 Compose web 同时占用本机 8881。
+开发机 `.env` 指向同一公网 API 与 Key → `pnpm dev:mobile` → `exp://<局域网IP>:28881`。勿与 Compose web 同时占用本机 28881。
 
 ---
 
@@ -129,8 +129,8 @@ pnpm apk:build
 | 触发失败「无法连接 agent」 | 宿主机未跑 `pnpm apk:agent`；检查 `APK_BUILD_AGENT_URL` |
 | Gradle / SDK 错误          | 检查 `ANDROID_HOME`、JDK、磁盘空间                      |
 | 下载 404                   | 尚未构建成功；看 `deploy/apk/`                          |
-| 浏览器 CORS                | `CORS_ORIGIN` 含 `http://<公网IP>:8881` 后重启 api      |
-| 8881 冲突                  | 停 Metro 或停 Compose web                               |
+| 浏览器 CORS                | `CORS_ORIGIN` 含 `http://<公网IP>:28881` 后重启 api     |
+| 28881 冲突                 | 停 Metro 或停 Compose web                               |
 
 ---
 

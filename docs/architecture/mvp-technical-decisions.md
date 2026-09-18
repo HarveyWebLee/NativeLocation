@@ -26,7 +26,7 @@
 
 | 面     | 影响                                                                              |
 | ------ | --------------------------------------------------------------------------------- |
-| mobile | Expo SDK 54、`expo-location`、前台 watch、WS/HTTP uploader、Metro **8881**        |
+| mobile | Expo SDK 54、`expo-location`、前台 watch、WS/HTTP uploader、Metro **28881**       |
 | api    | NestJS HTTP + 原生 WebSocket、Prisma 写入 `Device` / `LocationPoint`              |
 | shared | `locationPointSchema`、`locationBatchSchema`、`deviceRegisterSchema`、`API_PATHS` |
 | 数据   | PostgreSQL 16（Docker）；索引 `(deviceId, recordedAt DESC)`                       |

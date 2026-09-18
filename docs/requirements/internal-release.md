@@ -20,7 +20,7 @@
 ### 本期（In Scope）
 
 - Compose：`postgres + api + web`（不起 nginx）；`.env.production`；库仅 `127.0.0.1`。
-- API `:18156`；Web `:8881`（容器内亦 8881）。
+- API `:18156`；Web `:28881`（容器内亦 28881）。
 - **APK 自动化：**
   - 宿主机安装 JDK + Android SDK；运行 **APK build agent**（本机进程，非云 EAS）。
   - 构建：`expo prebuild` + Gradle **`assembleDebug`**（debug keystore）。

@@ -92,13 +92,13 @@ openssl rand -hex 32
 浏览器 / 辅助预览
         │
         ▼
-  宿主机/容器 :8881 → 静态 Mobile Web（EXPO_PUBLIC_* 构建时写入）
+  宿主机/容器 :28881 → 静态 Mobile Web（EXPO_PUBLIC_* 构建时写入）
 ```
 
 - Nest 在容器内仍是 HTTP。对外反向代理：**18200** = HTTP（301 到 HTTPS），**18201** = HTTPS/WSS。不使用 80/443。
 - Nginx 与 API 同属 Compose：`proxy_pass http://api:18156`。证书目录只读挂载，续期不重建 API 镜像。Nginx 使用 Compose profile `tls`，无证书时不要启用。
 - Postgres 宿主机只绑 **127.0.0.1**；API / Web / Nginx 公网口仍绑 `0.0.0.0`。
-- Mobile Web：容器内 Nginx **listen 8881**，宿主机默认亦为 **8881**（`WEB_PORT`；勿与本机 Metro 同时占用）。
+- Mobile Web：容器内 Nginx **listen 28881**，宿主机默认亦为 **28881**（`WEB_PORT`；勿与本机 Metro 同时占用）。
 - 客户端地址必须带端口，例如 `https://api.example.com:18201`、`wss://api.example.com:18201/v1/location/stream`。
 - 无域名公网内测（postgres+api+web、不起 nginx）见 [internal-release.md](./internal-release.md)。
 - `GET /health` **不需要** API Key（探活、证书、Nginx 检查）。
@@ -127,7 +127,7 @@ pnpm typecheck
 
 ## 5. 部署生产 API（自有 VPS）
 
-以下在 **VPS** 上操作，已能 SSH。本栈 **不在宿主机安装 Nginx**。TLS 入口是 Compose 里的 `nginx` 服务（profile `tls`）；`deploy/nginx.conf` 与 `deploy/letsencrypt` 只读挂进容器。不要开放 80/443 给本服务。Postgres 宿主机绑 **`127.0.0.1:${POSTGRES_PORT}`**（默认 16875）；API `18156`、Web **`8881`（宿主机与容器）**、Nginx `18200/18201` 绑 `0.0.0.0`。手册默认对公网放行 18200/18201（及按需 8881）。
+以下在 **VPS** 上操作，已能 SSH。本栈 **不在宿主机安装 Nginx**。TLS 入口是 Compose 里的 `nginx` 服务（profile `tls`）；`deploy/nginx.conf` 与 `deploy/letsencrypt` 只读挂进容器。不要开放 80/443 给本服务。Postgres 宿主机绑 **`127.0.0.1:${POSTGRES_PORT}`**（默认 16875）；API `18156`、Web **`28881`（宿主机与容器）**、Nginx `18200/18201` 绑 `0.0.0.0`。手册默认对公网放行 18200/18201（及按需 8881）。
 
 已是 `root` 时可省略 `sudo`。Docker 已安装则跳过 5.1.1，只确认版本。
 
@@ -202,11 +202,11 @@ chmod 600 .env.production
 | `POSTGRES_DB`              | 默认 `nativelocation`                                                    |
 | `POSTGRES_PORT`            | 宿主机映射端口，默认 `16875`，仅绑 `127.0.0.1`；API 容器仍连内网 `5432`  |
 | `API_KEY`                  | 与 `EXPO_PUBLIC_API_KEY` / EAS 相同                                      |
-| `CORS_ORIGIN`              | 使用 Compose `web` 时填 Web 源（如 `http://域名或IP:8881`）；可留空      |
+| `CORS_ORIGIN`              | 使用 Compose `web` 时填 Web 源（如 `http://域名或IP:28881`）；可留空     |
 | `EXPO_PUBLIC_API_HTTP_URL` | 写入 Web 镜像与 EAS；生产为 `https://域名:18201`                         |
 | `EXPO_PUBLIC_API_WS_URL`   | 生产为 `wss://域名:18201/v1/location/stream`                             |
 | `EXPO_PUBLIC_API_KEY`      | 与 `API_KEY` 相同                                                        |
-| `WEB_PORT`                 | Mobile Web **宿主机**端口，默认 `8881`（映射到容器内 `8881`）            |
+| `WEB_PORT`                 | Mobile Web **宿主机**端口，默认 `28881`（映射到容器内 `28881`）          |
 
 不要把真实 `.env.production` 拷回开发机仓库或发到聊天工具。
 
@@ -226,7 +226,7 @@ docker compose -f docker-compose.prod.yml --env-file .env.production logs -f api
 
 ```bash
 curl -sS http://127.0.0.1:18156/health
-curl -sS -o /dev/null -w "%{http_code}\n" http://127.0.0.1:${WEB_PORT:-8881}/
+curl -sS -o /dev/null -w "%{http_code}\n" http://127.0.0.1:${WEB_PORT:-28881}/
 ```
 
 期望 health 为 JSON、Web 为 200。若 api 容器反复退出，查日志是否为「生产环境必须设置 `API_KEY`」或数据库连不上。
@@ -239,7 +239,7 @@ curl -sS -o /dev/null -w "%{http_code}\n" http://127.0.0.1:${WEB_PORT:-8881}/
 | ------- | --------- | --------------------------------------------------- |
 | `18200` | HTTP      | 301 跳转到 `https://主机:18201`                     |
 | `18201` | HTTPS/WSS | 对外 API（TLS 终止后转到 Compose 服务 `api:18156`） |
-| `8881`  | HTTP      | Mobile Web（宿主机→容器内均为 8881）；内测/辅助预览 |
+| `28881` | HTTP      | Mobile Web（宿主机→容器内均为 8881）；内测/辅助预览 |
 | `18156` | HTTP      | Nest 明文；绑 `0.0.0.0`。对外请走 `18201` HTTPS     |
 
 Let's Encrypt 的 HTTP-01 需要 80，本机用不了 80，因此证书用 **DNS-01**。Certbot 官方镜像把证书写到仓库内 `deploy/letsencrypt`（对应容器 `/etc/letsencrypt`），工作目录为 `deploy/certbot-work`。二者已 gitignore，迁机时拷贝整个 `deploy/letsencrypt` 即可。

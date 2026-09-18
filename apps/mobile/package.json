@@ -4,9 +4,9 @@
   "private": true,
   "main": "index.ts",
   "scripts": {
-    "start": "node ../../scripts/with-root-env.mjs expo start --web --port 8881",
-    "android": "node ../../scripts/with-root-env.mjs expo start --android --port 8881",
-    "ios": "node ../../scripts/with-root-env.mjs expo start --ios --port 8881",
+    "start": "node ../../scripts/with-root-env.mjs expo start --web --port 28881",
+    "android": "node ../../scripts/with-root-env.mjs expo start --android --port 28881",
+    "ios": "node ../../scripts/with-root-env.mjs expo start --ios --port 28881",
     "export:web": "expo export --platform web",
     "typecheck": "tsc --noEmit",
     "lint": "eslint . --fix",

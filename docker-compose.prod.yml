@@ -54,7 +54,7 @@ services:
     depends_on:
       - api
     ports:
-      - '0.0.0.0:${WEB_PORT:-8881}:8881'
+      - '0.0.0.0:${WEB_PORT:-28881}:28881'
     volumes:
       - ./deploy/apk:/apk:ro
 
