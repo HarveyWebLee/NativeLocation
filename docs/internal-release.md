@@ -124,10 +124,12 @@ pnpm apk:build
 
 ## 9. 故障排查
 
+本机 `pnpm apk:build` 已遇问题与解法见 [apk-build-troubleshooting.md](./apk-build-troubleshooting.md)（JDK/SDK、Gradle 下载超时、Reanimated 版本等）。
+
 | 现象                       | 处理                                                    |
 | -------------------------- | ------------------------------------------------------- |
 | 触发失败「无法连接 agent」 | 宿主机未跑 `pnpm apk:agent`；检查 `APK_BUILD_AGENT_URL` |
-| Gradle / SDK 错误          | 检查 `ANDROID_HOME`、JDK、磁盘空间                      |
+| Gradle / SDK 错误          | 检查 `ANDROID_HOME`、JDK、磁盘空间；详见排障文档        |
 | 下载 404                   | 尚未构建成功；看 `deploy/apk/`                          |
 | 浏览器 CORS                | `CORS_ORIGIN` 含 `http://<公网IP>:28881` 后重启 api     |
 | 28881 冲突                 | 停 Metro 或停 Compose web                               |
