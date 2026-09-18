@@ -60,7 +60,9 @@
       "metro-source-map": "0.83.3",
       "metro-symbolicate": "0.83.3",
       "metro-transform-plugins": "0.83.3",
-      "metro-transform-worker": "0.83.3"
+      "metro-transform-worker": "0.83.3",
+      "react-native-reanimated": "~4.1.1",
+      "react-native-worklets": "0.5.1"
     }
   }
 }
