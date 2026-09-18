@@ -3,7 +3,10 @@ import { useCallback, useEffect, useState } from 'react';
 import { Linking, Platform } from 'react-native';
 import { Button, Text, XStack, YStack } from 'tamagui';
 
-import { API_HTTP_URL, apiAuthHeaders } from '../config';
+import {
+  API_HTTP_URL,
+  // apiAuthHeaders
+} from '../config';
 
 type ApkBuildStatus = {
   status: 'idle' | 'running' | 'success' | 'failed';
@@ -22,7 +25,7 @@ const emptyStatus: ApkBuildStatus = {
 
 export function ApkReleasePanel() {
   const [status, setStatus] = useState<ApkBuildStatus>(emptyStatus);
-  const [busy, setBusy] = useState(false);
+  // const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
   const refresh = useCallback(async () => {
@@ -61,34 +64,34 @@ export function ApkReleasePanel() {
       ? `${window.location.origin}${status.downloadPath || APK_DOWNLOAD_PATH}`
       : APK_DOWNLOAD_PATH;
 
-  const building = busy || status.status === 'running';
+  // const building = busy || status.status === 'running';
 
-  const onBuild = async () => {
-    setBusy(true);
-    setError(null);
-    try {
-      const response = await fetch(`${API_HTTP_URL}${API_PATHS.apkBuild}`, {
-        method: 'POST',
-        headers: apiAuthHeaders(),
-      });
-      const body = (await response.json().catch(() => ({}))) as {
-        message?: string;
-      };
-      if (!response.ok) {
-        throw new Error(body.message ?? `触发失败 HTTP ${response.status}`);
-      }
-      setStatus((prev) => ({
-        ...prev,
-        status: 'running',
-        message: body.message ?? '已接受构建任务',
-      }));
-      await refresh();
-    } catch (err) {
-      setError(err instanceof Error ? err.message : '触发构建失败');
-    } finally {
-      setBusy(false);
-    }
-  };
+  // const onBuild = async () => {
+  //   setBusy(true);
+  //   setError(null);
+  //   try {
+  //     const response = await fetch(`${API_HTTP_URL}${API_PATHS.apkBuild}`, {
+  //       method: 'POST',
+  //       headers: apiAuthHeaders(),
+  //     });
+  //     const body = (await response.json().catch(() => ({}))) as {
+  //       message?: string;
+  //     };
+  //     if (!response.ok) {
+  //       throw new Error(body.message ?? `触发失败 HTTP ${response.status}`);
+  //     }
+  //     setStatus((prev) => ({
+  //       ...prev,
+  //       status: 'running',
+  //       message: body.message ?? '已接受构建任务',
+  //     }));
+  //     await refresh();
+  //   } catch (err) {
+  //     setError(err instanceof Error ? err.message : '触发构建失败');
+  //   } finally {
+  //     setBusy(false);
+  //   }
+  // };
 
   return (
     <YStack
@@ -120,7 +123,7 @@ export function ApkReleasePanel() {
         </Text>
       ) : null}
       <YStack gap="$2">
-        <Button
+        {/* <Button
           size="$4"
           theme="green"
           disabled={building}
@@ -129,7 +132,7 @@ export function ApkReleasePanel() {
           }}
         >
           {building ? '构建中…' : '开始构建 APK'}
-        </Button>
+        </Button> */}
         <Button
           size="$4"
           disabled={!status.apkAvailable}
